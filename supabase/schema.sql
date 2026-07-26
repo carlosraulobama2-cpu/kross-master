@@ -165,6 +165,30 @@ CREATE TABLE IF NOT EXISTS public.notificaciones (
   creado_en TIMESTAMPTZ DEFAULT now()
 );
 
+-- Tabla de personal/staff para eventos
+CREATE TABLE IF NOT EXISTS public.staff_evento (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  evento_id UUID NOT NULL REFERENCES public.eventos(id),
+  usuario_id UUID NOT NULL REFERENCES public.usuarios(id),
+  rol_staff TEXT NOT NULL DEFAULT 'validador',
+  autorizado BOOLEAN NOT NULL DEFAULT true,
+  creado_en TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(evento_id, usuario_id)
+);
+
+-- Tabla de códigos de acceso por evento
+CREATE TABLE IF NOT EXISTS public.codigos_acceso (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  evento_id UUID NOT NULL REFERENCES public.eventos(id),
+  codigo TEXT UNIQUE NOT NULL,
+  tipo TEXT NOT NULL DEFAULT 'staff',
+  activo BOOLEAN NOT NULL DEFAULT true,
+  usos_maximos INTEGER,
+  usos_actuales INTEGER NOT NULL DEFAULT 0,
+  expira_en TIMESTAMPTZ,
+  creado_en TIMESTAMPTZ DEFAULT now()
+);
+
 -- Índices para mejorar rendimiento
 CREATE INDEX IF NOT EXISTS idx_eventos_artista_id ON public.eventos(artista_id);
 CREATE INDEX IF NOT EXISTS idx_eventos_titulo ON public.eventos(titulo);
@@ -183,6 +207,10 @@ CREATE INDEX IF NOT EXISTS idx_accesos_creado_en ON public.accesos(creado_en);
 CREATE INDEX IF NOT EXISTS idx_favoritos_usuario_id ON public.favoritos(usuario_id);
 CREATE INDEX IF NOT EXISTS idx_resenas_evento_id ON public.resenas(evento_id);
 CREATE INDEX IF NOT EXISTS idx_notificaciones_usuario_id ON public.notificaciones(usuario_id);
+CREATE INDEX IF NOT EXISTS idx_staff_evento_id ON public.staff_evento(evento_id);
+CREATE INDEX IF NOT EXISTS idx_staff_usuario_id ON public.staff_evento(usuario_id);
+CREATE INDEX IF NOT EXISTS idx_codigos_acceso_evento_id ON public.codigos_acceso(evento_id);
+CREATE INDEX IF NOT EXISTS idx_codigos_acceso_codigo ON public.codigos_acceso(codigo);
 
 -- Row Level Security (RLS)
 ALTER TABLE public.usuarios ENABLE ROW LEVEL SECURITY;
@@ -287,6 +315,32 @@ CREATE POLICY "Usuarios ven sus notificaciones" ON public.notificaciones
 
 CREATE POLICY "Usuarios pueden actualizar sus notificaciones" ON public.notificaciones
   FOR UPDATE USING (auth.uid() = usuario_id);
+
+-- Políticas para staff de eventos
+CREATE POLICY "Artistas pueden gestionar staff de sus eventos" ON public.staff_evento
+  FOR ALL USING (auth.uid() = (SELECT artista_id FROM public.eventos WHERE id = evento_id));
+
+CREATE POLICY "Staff ve sus asignaciones" ON public.staff_evento
+  FOR SELECT USING (auth.uid() = usuario_id);
+
+-- Políticas para códigos de acceso
+CREATE POLICY "Códigos visibles para artistas del evento" ON public.codigos_acceso
+  FOR SELECT USING (auth.uid() = (SELECT artista_id FROM public.eventos WHERE id = evento_id));
+
+CREATE POLICY "Artistas pueden crear códigos" ON public.codigos_acceso
+  FOR INSERT WITH CHECK (auth.uid() = (SELECT artista_id FROM public.eventos WHERE id = evento_id));
+
+-- Políticas para accesos (actualizada para staff)
+CREATE POLICY "Artistas ven accesos de sus eventos" ON public.accesos
+  FOR SELECT USING (auth.uid() = (SELECT artista_id FROM public.eventos WHERE id = evento_id));
+
+CREATE POLICY "Staff puede registrar accesos" ON public.accesos
+  FOR INSERT WITH CHECK (
+    auth.uid() IN (
+      SELECT usuario_id FROM public.staff_evento 
+      WHERE evento_id = evento_id AND autorizado = true
+    )
+  );
 
 -- Función para generar QR payload
 CREATE OR REPLACE FUNCTION public.build_qr_payload(ticket_id TEXT, event_id TEXT, seat TEXT)

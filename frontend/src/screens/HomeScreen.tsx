@@ -136,6 +136,9 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
           <TouchableOpacity style={styles.profileButton} onPress={handleProfilePress}>
             <Ionicons name="person-circle-outline" size={36} color="#00FF87" />
           </TouchableOpacity>
+          <TouchableOpacity style={styles.staffButton} onPress={() => navigation.navigate('StaffLogin')}>
+            <Ionicons name="scan-outline" size={28} color="#00FF87" />
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -245,6 +248,17 @@ const styles = StyleSheet.create({
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  staffButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#1C1C24',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#2C2C36',
+    marginLeft: 8,
   },
   searchContainer: {
     flexDirection: 'row',

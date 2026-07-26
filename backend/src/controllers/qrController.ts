@@ -1,10 +1,10 @@
 import { Request, Response } from 'express';
 import { supabase } from '../config/supabase';
-import { parsearQr } from '../utils/qrSigner';
+import { parsearQr, esQrExpirado } from '../utils/qrSigner';
 
 async function validarQr(req: Request, res: Response) {
   try {
-    const { codigo_qr } = req.body;
+    const { codigo_qr, codigo_acceso, usuario_id } = req.body;
     if (!codigo_qr) {
       return res.status(400).json({ mensaje: 'codigo_qr es requerido' });
     }
@@ -12,6 +12,24 @@ async function validarQr(req: Request, res: Response) {
     const datosQr = parsearQr(codigo_qr);
     if (!datosQr) {
       return res.status(400).json({ mensaje: 'QR inválido' });
+    }
+
+    if (!datosQr.ticket_id || !datosQr.event_id || !datosQr.nonce || !datosQr.exp) {
+      return res.status(400).json({ mensaje: 'QR con formato inválido' });
+    }
+
+    if (esQrExpirado(datosQr)) {
+      return res.status(400).json({ mensaje: 'QR expirado, solicita uno nuevo' });
+    }
+
+    const { data: nonceUsado } = await supabase
+      .from('qr_nonces')
+      .select('id')
+      .eq('nonce', datosQr.nonce)
+      .single();
+
+    if (nonceUsado) {
+      return res.status(400).json({ mensaje: 'QR ya fue escaneado' });
     }
 
     const { data: entrada, error } = await supabase
@@ -28,16 +46,48 @@ async function validarQr(req: Request, res: Response) {
       return res.status(409).json({ mensaje: 'Esta entrada ya fue usada', entrada });
     }
 
+    let escaneadoPor = null;
+    if (codigo_acceso && usuario_id) {
+      const { data: staff } = await supabase
+        .from('staff_evento')
+        .select('id')
+        .eq('evento_id', entrada.evento_id)
+        .eq('usuario_id', usuario_id)
+        .eq('autorizado', true)
+        .single();
+
+      if (staff) {
+        escaneadoPor = usuario_id;
+      }
+    }
+
+    await supabase.from('qr_nonces').insert([{ nonce: datosQr.nonce, ticket_id: datosQr.ticket_id, evento_id: datosQr.event_id }]);
+
     const { error: updateError } = await supabase
       .from('entradas')
-      .update({ estado: 'USADO', fecha_escaneo: new Date().toISOString() })
+      .update({ 
+        estado: 'USADO', 
+        fecha_escaneo: new Date().toISOString(),
+        escaneado_por: escaneadoPor,
+      })
       .eq('id', entrada.id);
 
     if (updateError) {
       return res.status(500).json({ mensaje: 'Error al actualizar la entrada', error: updateError.message });
     }
 
-    res.json({ mensaje: 'Entrada válida y marcada como usada', entrada: { ...entrada, estado: 'USADO' } });
+    await supabase
+      .from('accesos')
+      .insert([{
+        entrada_id: entrada.id,
+        evento_id: entrada.evento_id,
+        usuario_id: entrada.usuario_id,
+        tipo_acceso: 'entrada',
+        metodo_verificacion: 'qr',
+        dispositivo_info: req.body.dispositivo_info || {},
+      }]);
+
+    res.json({ mensaje: 'Entrada válida y marcada como usada', entrada: { ...entrada, estado: 'USADO', escaneado_por: escaneadoPor } });
   } catch (error) {
     res.status(500).json({ mensaje: 'Error al validar QR', error: (error as Error).message });
   }

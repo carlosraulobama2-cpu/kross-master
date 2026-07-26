@@ -8,10 +8,13 @@ interface ScanQRScreenProps {
   navigation: any;
 }
 
-export default function ScanQRScreen({ navigation }: ScanQRScreenProps) {
+export default function ScanQRScreen({ navigation, route }: any) {
   const [permission, requestPermission] = useCameraPermissions();
   const [escaneando, setEscaneando] = useState<boolean>(true);
   const [resultado, setResultado] = useState<any>(null);
+  const eventoId = route?.params?.eventoId;
+  const codigoAcceso = route?.params?.codigoAcceso;
+  const usuarioId = route?.params?.usuarioId;
 
   useEffect(() => {
     if (!permission?.granted) {
@@ -33,7 +36,12 @@ export default function ScanQRScreen({ navigation }: ScanQRScreenProps) {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ codigo_qr: codigoQr }),
+          body: JSON.stringify({ 
+            codigo_qr: codigoQr,
+            codigo_acceso: codigoAcceso,
+            usuario_id: usuarioId,
+            dispositivo_info: { platform: 'mobile' },
+          }),
         }
       );
 

@@ -199,6 +199,13 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
       </View>
 
       {usuario && (
+        <TouchableOpacity style={styles.staffAccessButton} onPress={() => navigation.navigate('AccessCode')}>
+          <Ionicons name="scan-outline" size={20} color="#FFFFFF" />
+          <Text style={styles.staffAccessText}>Acceso Staff / Validador</Text>
+        </TouchableOpacity>
+      )}
+
+      {usuario && (
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <Text style={styles.logoutText}>Cerrar Sesión</Text>
         </TouchableOpacity>
@@ -325,6 +332,24 @@ const styles = StyleSheet.create({
   },
   logoutText: {
     color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 15,
+  },
+  staffAccessButton: {
+    marginHorizontal: 20,
+    marginTop: 16,
+    backgroundColor: '#1C1C24',
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#2C2C36',
+  },
+  staffAccessText: {
+    color: '#00FF87',
     fontWeight: '800',
     fontSize: 15,
   },

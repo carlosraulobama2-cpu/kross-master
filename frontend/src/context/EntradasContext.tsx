@@ -53,6 +53,10 @@ interface EntradasContextType {
   verificarTerminos: (version: string, tipo?: string) => Promise<any>;
   conectarStripeConnect: () => Promise<any>;
   obtenerStripeConnectStatus: () => Promise<any>;
+  generarCodigoAcceso: (eventoId: string, codigo: string, tipo?: string, usosMaximos?: number) => Promise<any>;
+  listarCodigosAcceso: (eventoId: string) => Promise<any>;
+  validarCodigoAcceso: (codigo: string, eventoId: string) => Promise<any>;
+  asignarStaff: (eventoId: string, email: string, rolStaff?: string) => Promise<any>;
 }
 
 const EntradasContext = createContext<EntradasContextType | undefined>(undefined);
@@ -636,6 +640,85 @@ export function EntradasProvider({ children }: { children: React.ReactNode }) {
     return result;
   }
 
+  async function generarCodigoAcceso(eventoId: string, codigo: string, tipo = 'staff', usosMaximos?: number) {
+    const token = (await supabase.auth.getSession()).data.session?.access_token;
+    const backendUrl = (process.env as any).EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+
+    const response = await fetch(`${backendUrl}/api/staff/generar`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ eventoId, codigo, tipo, usosMaximos }),
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.mensaje || 'Error al generar código');
+    }
+
+    return result;
+  }
+
+  async function listarCodigosAcceso(eventoId: string) {
+    const token = (await supabase.auth.getSession()).data.session?.access_token;
+    const backendUrl = (process.env as any).EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+
+    const response = await fetch(`${backendUrl}/api/staff/evento/${eventoId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.mensaje || 'Error al listar códigos');
+    }
+
+    return result;
+  }
+
+  async function validarCodigoAcceso(codigo: string, eventoId: string) {
+    const backendUrl = (process.env as any).EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+
+    const response = await fetch(`${backendUrl}/api/staff/validar`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ codigo, eventoId }),
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.mensaje || 'Código inválido');
+    }
+
+    return result;
+  }
+
+  async function asignarStaff(eventoId: string, email: string, rolStaff = 'validador') {
+    const token = (await supabase.auth.getSession()).data.session?.access_token;
+    const backendUrl = (process.env as any).EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+
+    const response = await fetch(`${backendUrl}/api/staff/asignar-staff`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ eventoId, email, rolStaff }),
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.mensaje || 'Error al asignar staff');
+    }
+
+    return result;
+  }
+
   return (
     <EntradasContext.Provider value={{
       entradas,
@@ -668,6 +751,10 @@ export function EntradasProvider({ children }: { children: React.ReactNode }) {
       verificarTerminos,
       conectarStripeConnect,
       obtenerStripeConnectStatus,
+      generarCodigoAcceso,
+      listarCodigosAcceso,
+      validarCodigoAcceso,
+      asignarStaff,
     }}>
       {children}
     </EntradasContext.Provider>

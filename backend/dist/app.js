@@ -24,6 +24,7 @@ const transferencias_1 = __importDefault(require("./routes/transferencias"));
 const facturas_1 = __importDefault(require("./routes/facturas"));
 const analytics_1 = __importDefault(require("./routes/analytics"));
 const terminos_1 = __importDefault(require("./routes/terminos"));
+const staff_1 = __importDefault(require("./routes/staff"));
 const app = (0, express_1.default)();
 exports.app = app;
 app.use((0, cors_1.default)());
@@ -48,6 +49,7 @@ app.use('/api/transferencias', transferencias_1.default);
 app.use('/api/facturas', facturas_1.default);
 app.use('/api/analytics', analytics_1.default);
 app.use('/api/terminos', terminos_1.default);
+app.use('/api/staff', staff_1.default);
 app.use((_req, res) => {
     res.status(404).json({ mensaje: 'Ruta no encontrada' });
 });

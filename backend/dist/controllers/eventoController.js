@@ -70,7 +70,7 @@ async function obtener(req, res) {
 async function comprar(req, res) {
     try {
         const { id } = req.params;
-        const { asiento } = req.body;
+        const { asiento, tramoId } = req.body;
         const usuarioId = req.usuario.id;
         const { data: evento, error: eventoError } = await supabase_1.supabase
             .from('eventos')
@@ -80,32 +80,76 @@ async function comprar(req, res) {
         if (eventoError || !evento) {
             return res.status(404).json({ mensaje: 'Evento no encontrado' });
         }
-        if (evento.entradas_disponibles <= 0) {
-            return res.status(409).json({ mensaje: 'No hay entradas disponibles' });
+        if (tramoId) {
+            const { data: tramo, error: tramoError } = await supabase_1.supabase
+                .from('tramos_entrada')
+                .select('*')
+                .eq('id', tramoId)
+                .eq('evento_id', id)
+                .single();
+            if (tramoError || !tramo) {
+                return res.status(404).json({ mensaje: 'Tramo no encontrado' });
+            }
+            if (tramo.entradas_disponibles <= 0) {
+                return res.status(409).json({ mensaje: 'No hay entradas disponibles en este tramo' });
+            }
+            const ticketId = `TK-${Math.floor(Math.random() * 9000) + 1000}`;
+            const eventId = `EV-2026-${evento.id}`;
+            const { buildQrPayload } = require('../utils/qrSigner');
+            const codigoQr = buildQrPayload({ ticketId, eventId, seat: asiento || tramo.nombre });
+            const { data: entrada, error: entradaError } = await supabase_1.supabase
+                .from('entradas')
+                .insert([{
+                    evento_id: evento.id,
+                    usuario_id: usuarioId,
+                    tramo_id: tramoId,
+                    codigo_qr: codigoQr,
+                    asiento: asiento || tramo.nombre,
+                    precio_pagado: tramo.precio,
+                    estado: 'VALIDO',
+                }])
+                .select()
+                .single();
+            if (entradaError)
+                throw entradaError;
+            await supabase_1.supabase
+                .from('tramos_entrada')
+                .update({ entradas_disponibles: (tramo.entradas_disponibles || 0) - 1 })
+                .eq('id', tramoId);
+            await supabase_1.supabase
+                .from('eventos')
+                .update({ entradas_disponibles: (evento.entradas_disponibles || 0) - 1 })
+                .eq('id', evento.id);
+            res.status(201).json({ entrada });
         }
-        const ticketId = `TK-${Math.floor(Math.random() * 9000) + 1000}`;
-        const eventId = `EV-2026-${evento.id}`;
-        const { buildQrPayload } = require('../utils/qrSigner');
-        const codigoQr = buildQrPayload({ ticketId, eventId, seat: asiento || 'A-12' });
-        const { data: entrada, error: entradaError } = await supabase_1.supabase
-            .from('entradas')
-            .insert([{
-                evento_id: evento.id,
-                usuario_id: usuarioId,
-                codigo_qr: codigoQr,
-                asiento: asiento || 'A-12',
-                precio_pagado: evento.precio,
-                estado: 'VALIDO',
-            }])
-            .select()
-            .single();
-        if (entradaError)
-            throw entradaError;
-        await supabase_1.supabase
-            .from('eventos')
-            .update({ entradas_disponibles: (evento.entradas_disponibles || 0) - 1 })
-            .eq('id', evento.id);
-        res.status(201).json({ entrada });
+        else {
+            if (evento.entradas_disponibles <= 0) {
+                return res.status(409).json({ mensaje: 'No hay entradas disponibles' });
+            }
+            const ticketId = `TK-${Math.floor(Math.random() * 9000) + 1000}`;
+            const eventId = `EV-2026-${evento.id}`;
+            const { buildQrPayload } = require('../utils/qrSigner');
+            const codigoQr = buildQrPayload({ ticketId, eventId, seat: asiento || 'A-12', ttlSeconds: 600 });
+            const { data: entrada, error: entradaError } = await supabase_1.supabase
+                .from('entradas')
+                .insert([{
+                    evento_id: evento.id,
+                    usuario_id: usuarioId,
+                    codigo_qr: codigoQr,
+                    asiento: asiento || 'A-12',
+                    precio_pagado: evento.precio,
+                    estado: 'VALIDO',
+                }])
+                .select()
+                .single();
+            if (entradaError)
+                throw entradaError;
+            await supabase_1.supabase
+                .from('eventos')
+                .update({ entradas_disponibles: (evento.entradas_disponibles || 0) - 1 })
+                .eq('id', evento.id);
+            res.status(201).json({ entrada });
+        }
     }
     catch (error) {
         res.status(500).json({ mensaje: 'Error al comprar entrada', error: error.message });

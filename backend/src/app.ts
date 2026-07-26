@@ -19,6 +19,7 @@ import transferenciaRoutes from './routes/transferencias';
 import facturaRoutes from './routes/facturas';
 import analyticsRoutes from './routes/analytics';
 import terminoRoutes from './routes/terminos';
+import staffRoutes from './routes/staff';
 
 const app = express();
 
@@ -46,6 +47,7 @@ app.use('/api/transferencias', transferenciaRoutes);
 app.use('/api/facturas', facturaRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/terminos', terminoRoutes);
+app.use('/api/staff', staffRoutes);
 
 app.use((_req, res) => {
   res.status(404).json({ mensaje: 'Ruta no encontrada' });
