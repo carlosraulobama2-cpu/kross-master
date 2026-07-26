@@ -33,8 +33,8 @@ async function authMiddleware(req, _res, next) {
     }
 }
 function adminOnly(req, res, next) {
-    if (req.usuario?.rol !== 'admin') {
-        res.status(403).json({ mensaje: 'Acceso denegado. Se requiere rol admin.' });
+    if (req.usuario?.rol !== 'super_admin') {
+        res.status(403).json({ mensaje: 'Acceso denegado. Se requiere rol super_admin.' });
         return;
     }
     next();

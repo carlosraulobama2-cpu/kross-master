@@ -43,8 +43,8 @@ async function authMiddleware(req: RequestWithUser, _res: Response, next: NextFu
 }
 
 function adminOnly(req: RequestWithUser, res: Response, next: NextFunction) {
-  if (req.usuario?.rol !== 'admin') {
-    res.status(403).json({ mensaje: 'Acceso denegado. Se requiere rol admin.' });
+  if (req.usuario?.rol !== 'super_admin') {
+    res.status(403).json({ mensaje: 'Acceso denegado. Se requiere rol super_admin.' });
     return;
   }
   next();

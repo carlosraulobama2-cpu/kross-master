@@ -189,6 +189,49 @@ CREATE TABLE IF NOT EXISTS public.codigos_acceso (
   creado_en TIMESTAMPTZ DEFAULT now()
 );
 
+-- Tabla de configuración global de la app
+CREATE TABLE IF NOT EXISTS public.configuracion_app (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  nombre_plataforma TEXT DEFAULT 'Kroos Master',
+  logo_url TEXT,
+  color_principal TEXT DEFAULT '#00FF87',
+  email_soporte TEXT,
+  registro_abierto BOOLEAN DEFAULT true,
+  limite_intentos_login INTEGER DEFAULT 5,
+  duracion_sesion_minutos INTEGER DEFAULT 60,
+  codigo_acceso_evento_activado BOOLEAN DEFAULT true,
+  comision_por_defecto NUMERIC DEFAULT 10,
+  moneda TEXT DEFAULT 'EUR',
+  redondeo_comisiones INTEGER DEFAULT 2,
+  minimo_retiro NUMERIC DEFAULT 50,
+  push_globales_activadas BOOLEAN DEFAULT true,
+  email_alertas_criticas TEXT,
+  notificar_comisiones_creacion BOOLEAN DEFAULT true,
+  modo_mantenimiento BOOLEAN DEFAULT false,
+  mensaje_mantenimiento TEXT,
+  retencion_logs_dias INTEGER DEFAULT 90,
+  validacion_automatica_entradas BOOLEAN DEFAULT true,
+  limite_eventos_organizador INTEGER DEFAULT 10,
+  zona_horaria TEXT DEFAULT 'Europe/Madrid',
+  idioma_default TEXT DEFAULT 'es',
+  mostrar_aforo_disponible BOOLEAN DEFAULT true,
+  tamano_maximo_archivo_mb INTEGER DEFAULT 5,
+  version_minima TEXT DEFAULT '1.0.0',
+  actualizado_en TIMESTAMPTZ DEFAULT now()
+);
+
+-- Tabla de nonces de QR para evitar reuso
+CREATE TABLE IF NOT EXISTS public.qr_nonces (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  nonce TEXT UNIQUE NOT NULL,
+  ticket_id TEXT NOT NULL,
+  evento_id TEXT NOT NULL,
+  usado_en TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_qr_nonces_nonce ON public.qr_nonces(nonce);
+CREATE INDEX IF NOT EXISTS idx_configuracion_app_id ON public.configuracion_app(id);
+
 -- Índices para mejorar rendimiento
 CREATE INDEX IF NOT EXISTS idx_eventos_artista_id ON public.eventos(artista_id);
 CREATE INDEX IF NOT EXISTS idx_eventos_titulo ON public.eventos(titulo);

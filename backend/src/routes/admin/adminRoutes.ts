@@ -162,7 +162,7 @@ router.get('/configuracion', requireSuperAdmin, async (_req: any, res: Response)
 router.patch('/configuracion', requireSuperAdmin, async (req: any, res: Response) => {
   try {
     const payload = req.body;
-    const { error } = await supabase.from('configuracion_app').update(payload).eq('id', (req as any).user.id);
+    const { error } = await supabase.from('configuracion_app').update(payload).eq('id', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
     if (error) throw error;
     res.json({ ok: true });
   } catch (e) {
@@ -172,7 +172,7 @@ router.patch('/configuracion', requireSuperAdmin, async (req: any, res: Response
 
 router.get('/ajustes', requireSuperAdmin, async (_req: any, res: Response) => {
   try {
-    const { data, error } = await supabase.from('configuracion_app').select('*').single();
+    const { data, error } = await supabase.from('configuracion_app').select('*').eq('id', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa').single();
     if (error) throw error;
     res.json({ ajustes: data || {} });
   } catch (e) {
@@ -183,7 +183,7 @@ router.get('/ajustes', requireSuperAdmin, async (_req: any, res: Response) => {
 router.patch('/ajustes', requireSuperAdmin, async (req: any, res: Response) => {
   try {
     const payload = req.body;
-    const { error } = await supabase.from('configuracion_app').update(payload).eq('id', (req as any).user.id);
+    const { error } = await supabase.from('configuracion_app').update(payload).eq('id', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
     if (error) throw error;
     res.json({ ok: true });
   } catch (e) {
