@@ -1,6 +1,7 @@
 require('dotenv').config();
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
 
 import authRoutes from './routes/auth';
 import eventoRoutes from './routes/eventos';
@@ -21,11 +22,19 @@ import analyticsRoutes from './routes/analytics';
 import terminoRoutes from './routes/terminos';
 import staffRoutes from './routes/staff';
 import legalRoutes from './routes/legal';
+import adminRoutes from './routes/admin/adminRoutes';
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
+
+const ADMIN_DIR = path.join(__dirname, '../../admin');
+app.use('/admin', express.static(ADMIN_DIR));
+
+app.get('/admin', (_req, res) => {
+  res.redirect('/admin/login.html');
+});
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', service: 'kroos-master-backend' });
@@ -50,6 +59,7 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/terminos', terminoRoutes);
 app.use('/api/staff', staffRoutes);
 app.use('/api/legal', legalRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.use((_req, res) => {
   res.status(404).json({ mensaje: 'Ruta no encontrada' });

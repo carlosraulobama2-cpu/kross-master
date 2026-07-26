@@ -373,6 +373,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 12,
   },
+  termsRow: {
+    marginBottom: 12,
+  },
   termsLink: {
     color: '#00FF87',
     fontSize: 14,
@@ -404,5 +407,47 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     flex: 1,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#0D0D12',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 15,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1C1C24',
+  },
+  modalTitle: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  modalContent: {
+    flex: 1,
+    padding: 20,
+  },
+  modalText: {
+    color: '#E5E5EA',
+    fontSize: 14,
+    lineHeight: 22,
+    fontWeight: '500',
+  },
+  modalCloseButton: {
+    backgroundColor: '#00FF87',
+    marginHorizontal: 20,
+    marginBottom: 20,
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+  modalCloseText: {
+    color: '#0D0D12',
+    fontWeight: '800',
+    fontSize: 15,
   },
 });

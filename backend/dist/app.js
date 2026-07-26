@@ -7,6 +7,7 @@ exports.server = exports.app = void 0;
 require('dotenv').config();
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
+const path_1 = __importDefault(require("path"));
 const auth_1 = __importDefault(require("./routes/auth"));
 const eventos_1 = __importDefault(require("./routes/eventos"));
 const entradas_1 = __importDefault(require("./routes/entradas"));
@@ -26,10 +27,16 @@ const analytics_1 = __importDefault(require("./routes/analytics"));
 const terminos_1 = __importDefault(require("./routes/terminos"));
 const staff_1 = __importDefault(require("./routes/staff"));
 const legal_1 = __importDefault(require("./routes/legal"));
+const adminRoutes_1 = __importDefault(require("./routes/admin/adminRoutes"));
 const app = (0, express_1.default)();
 exports.app = app;
 app.use((0, cors_1.default)());
 app.use(express_1.default.json());
+const ADMIN_DIR = path_1.default.join(__dirname, '../../admin');
+app.use('/admin', express_1.default.static(ADMIN_DIR));
+app.get('/admin', (_req, res) => {
+    res.redirect('/admin/login.html');
+});
 app.get('/health', (_req, res) => {
     res.json({ status: 'ok', service: 'kroos-master-backend' });
 });
@@ -52,6 +59,7 @@ app.use('/api/analytics', analytics_1.default);
 app.use('/api/terminos', terminos_1.default);
 app.use('/api/staff', staff_1.default);
 app.use('/api/legal', legal_1.default);
+app.use('/api/admin', adminRoutes_1.default);
 app.use((_req, res) => {
     res.status(404).json({ mensaje: 'Ruta no encontrada' });
 });

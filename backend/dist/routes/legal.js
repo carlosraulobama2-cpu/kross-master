@@ -148,4 +148,40 @@ Kroos Master implementa medidas técnicas y organizativas para proteger los dato
 Para ejercer tus derechos o consultas sobre protección de datos: soporte@kroosmaster.com`
     });
 });
+router.get('/organizador', (_req, res) => {
+    res.json({
+        version: '1.0',
+        titulo: 'Condiciones para Organizadores de Eventos en Kroos Master',
+        contenido: `CONDICIONES Y RESPONSABILIDADES PARA LA PUBLICACIÓN DE EVENTOS EN KROOS MASTER
+Al publicar tu evento en Kroos Master, aceptas los siguientes acuerdos:
+
+1. Licencias y Autorizaciones Legales
+Permisos del Local: Declaras contar con la reserva, contrato o permiso expreso del recinto o sala donde se celebrará el evento.
+
+Derecho de Autor (SGAE / Derechos de Ejecución): Declaras ser el titular de las obras a interpretar o contar con las licencias correspondientes para la comunicación pública de música en directo. Kroos Master no asume pagos de derechos de autor derivados del show.
+
+Seguros y Normativa: Asumes la responsabilidad de disponer de los seguros de responsabilidad civil exigidos por la ley local/autonómica para la realización de espectáculos públicos.
+
+2. Aforo y Control de Accesos
+Límite de Aforo: Te comprometes a fijar un número total de entradas que nunca supere el aforo máximo legal permitido en el recinto.
+
+Uso Exclusivo del Escáner: El control de accesos debe realizarse a través de la herramienta oficial de la app mediante lectura de códigos QR. Kroos Master no se hace responsable de sobreaforos causados por accesos no registrados o venta en puerta fuera del sistema.
+
+Asignación de Staff: Eres el único responsable del uso que tu equipo o porteros hagan de los permisos de escaneo (PIN o invitaciones de correo) que otorgues desde tu panel de control.
+
+3. Cobros, Comisiones y Facturación
+Vinculación con Stripe Connect: Aceptas que todos los ingresos procedentes de la venta de entradas se procesen y transfieran a través de tu cuenta de Stripe Connect vinculada.
+
+Retención de Gastos de Gestión: Aceptas que Kroos Master aplique y retenga directamente la comisión o gasto de gestión acordado por cada entrada vendida.
+
+Obligaciones Fiscales: Eres el único responsable de declarar los ingresos obtenidos por la venta de entradas ante la hacienda pública (Hacienda/AEAT) y de emitir la correspondiente factura simplificada o ticket al comprador si este la solicita.
+
+4. Cancelaciones, Aplazamientos y Devoluciones
+Responsabilidad de Reembolso: En caso de cancelación definitiva del show, te comprometes a asumir la devolución íntegra del importe de las entradas a los compradores. La orden de reembolso se tramitará desde tu panel y los fondos se devolverán desde tu cuenta de Stripe.
+
+Cambios de Fecha u Horario: Si el evento cambia de fecha o ubicación, te comprometes a notificarlo a los asistentes a través de las herramientas de la app con un mínimo de 48 horas de antelación.
+
+Cancelación de Cuenta por Incumplimiento: Si Kroos Master detecta un evento falso, fraudulento o con indicios de estafa, se reserva el derecho de congelar las transferencias, cancelar el evento y dar de baja la cuenta del organizador de inmediato.`
+    });
+});
 exports.default = router;

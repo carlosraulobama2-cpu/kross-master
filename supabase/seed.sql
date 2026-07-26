@@ -65,8 +65,57 @@ VALUES
   ('rrrrrrrr-rrrr-rrrr-rrrr-rrrrrrrrrrrr', '11111111-1111-1111-1111-111111111111', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 5, '¡Increíble experiencia!')
 ON CONFLICT (id) DO NOTHING;
 
--- 10. Notificaciones
-INSERT INTO public.notificaciones (id, usuario_id, titulo, mensaje, tipo)
-VALUES
-  ('nnnnnnnn-nnnn-nnnn-nnnn-nnnnnnnnnnnn', '11111111-1111-1111-1111-111111111111', 'Bienvenido a Kroos Master', 'Gracias por registrarte', 'info')
+-- 11. Configuración global de la app
+INSERT INTO public.configuracion_app (
+  id,
+  nombre_plataforma,
+  logo_url,
+  color_principal,
+  email_soporte,
+  registro_abierto,
+  limite_intentos_login,
+  duracion_sesion_minutos,
+  codigo_acceso_evento_activado,
+  comision_por_defecto,
+  moneda,
+  redondeo_comisiones,
+  minimo_retiro,
+  push_globales_activadas,
+  email_alertas_criticas,
+  notificar_comisiones_creacion,
+  modo_mantenimiento,
+  retencion_logs_dias,
+  validacion_automatica_entradas,
+  limite_eventos_organizador,
+  zona_horaria,
+  idioma_default,
+  mostrar_aforo_disponible,
+  tamano_maximo_archivo_mb
+)
+VALUES (
+  'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+  'Kroos Master',
+  NULL,
+  '#00FF87',
+  'soporte@kroos.local',
+  true,
+  5,
+  60,
+  true,
+  10,
+  'EUR',
+  2,
+  50,
+  true,
+  'alertas@kroos.local',
+  true,
+  false,
+  90,
+  true,
+  10,
+  'Europe/Madrid',
+  'es',
+  true,
+  5
+)
 ON CONFLICT (id) DO NOTHING;
