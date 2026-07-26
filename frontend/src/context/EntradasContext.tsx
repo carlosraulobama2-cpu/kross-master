@@ -40,6 +40,19 @@ interface EntradasContextType {
   listarResenas: (eventoId: string) => Promise<any>;
   listarNotificaciones: () => Promise<any>;
   marcarNotificacionLeida: (id: string) => Promise<any>;
+  crearTramo: (eventoId: string, datos: any) => Promise<any>;
+  listarTramos: (eventoId: string) => Promise<any>;
+  crearReserva: (eventoId: string, tramoId: string, asiento?: string, cantidad?: number) => Promise<any>;
+  cancelarReserva: (reservaId: string) => Promise<any>;
+  crearTransferencia: (entradaId: string, emailDestino: string) => Promise<any>;
+  aceptarTransferencia: (codigoTransferencia: string) => Promise<any>;
+  crearFactura: (entradaId: string) => Promise<any>;
+  registrarAcceso: (entradaId: string, eventoId: string, tipo?: string) => Promise<any>;
+  obtenerAnalyticsEvento: (eventoId: string) => Promise<any>;
+  aceptarTerminos: (version: string, tipo?: string) => Promise<any>;
+  verificarTerminos: (version: string, tipo?: string) => Promise<any>;
+  conectarStripeConnect: () => Promise<any>;
+  obtenerStripeConnectStatus: () => Promise<any>;
 }
 
 const EntradasContext = createContext<EntradasContextType | undefined>(undefined);
@@ -361,6 +374,268 @@ export function EntradasProvider({ children }: { children: React.ReactNode }) {
     return result;
   }
 
+  async function crearTramo(eventoId: string, datos: any) {
+    const token = (await supabase.auth.getSession()).data.session?.access_token;
+    const backendUrl = (process.env as any).EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+
+    const response = await fetch(`${backendUrl}/api/tramos`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ eventoId, ...datos }),
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.mensaje || 'Error al crear tramo');
+    }
+
+    return result;
+  }
+
+  async function listarTramos(eventoId: string) {
+    const backendUrl = (process.env as any).EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+
+    const response = await fetch(`${backendUrl}/api/tramos/evento/${eventoId}`);
+
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.mensaje || 'Error al listar tramos');
+    }
+
+    return result;
+  }
+
+  async function crearReserva(eventoId: string, tramoId: string, asiento?: string, cantidad = 1) {
+    if (!usuario) throw new Error('Usuario no autenticado');
+
+    const token = (await supabase.auth.getSession()).data.session?.access_token;
+    const backendUrl = (process.env as any).EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+
+    const response = await fetch(`${backendUrl}/api/reservas`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ eventoId, tramoId, asiento, cantidad }),
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.mensaje || 'Error al crear reserva');
+    }
+
+    return result;
+  }
+
+  async function cancelarReserva(reservaId: string) {
+    if (!usuario) throw new Error('Usuario no autenticado');
+
+    const token = (await supabase.auth.getSession()).data.session?.access_token;
+    const backendUrl = (process.env as any).EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+
+    const response = await fetch(`${backendUrl}/api/reservas/${reservaId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.mensaje || 'Error al cancelar reserva');
+    }
+
+    return result;
+  }
+
+  async function crearTransferencia(entradaId: string, emailDestino: string) {
+    if (!usuario) throw new Error('Usuario no autenticado');
+
+    const token = (await supabase.auth.getSession()).data.session?.access_token;
+    const backendUrl = (process.env as any).EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+
+    const response = await fetch(`${backendUrl}/api/transferencias`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ entradaId, emailDestino }),
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.mensaje || 'Error al crear transferencia');
+    }
+
+    return result;
+  }
+
+  async function aceptarTransferencia(codigoTransferencia: string) {
+    if (!usuario) throw new Error('Usuario no autenticado');
+
+    const token = (await supabase.auth.getSession()).data.session?.access_token;
+    const backendUrl = (process.env as any).EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+
+    const response = await fetch(`${backendUrl}/api/transferencias/aceptar`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ codigoTransferencia }),
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.mensaje || 'Error al aceptar transferencia');
+    }
+
+    return result;
+  }
+
+  async function crearFactura(entradaId: string) {
+    if (!usuario) throw new Error('Usuario no autenticado');
+
+    const token = (await supabase.auth.getSession()).data.session?.access_token;
+    const backendUrl = (process.env as any).EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+
+    const response = await fetch(`${backendUrl}/api/facturas`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ entradaId }),
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.mensaje || 'Error al crear factura');
+    }
+
+    return result;
+  }
+
+  async function registrarAcceso(entradaId: string, eventoId: string, tipo = 'entrada') {
+    const token = (await supabase.auth.getSession()).data.session?.access_token;
+    const backendUrl = (process.env as any).EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+
+    const response = await fetch(`${backendUrl}/api/analytics/acceso`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ entradaId, eventoId, tipo_acceso: tipo }),
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.mensaje || 'Error al registrar acceso');
+    }
+
+    return result;
+  }
+
+  async function obtenerAnalyticsEvento(eventoId: string) {
+    const token = (await supabase.auth.getSession()).data.session?.access_token;
+    const backendUrl = (process.env as any).EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+
+    const response = await fetch(`${backendUrl}/api/analytics/evento/${eventoId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.mensaje || 'Error al obtener analytics');
+    }
+
+    return result;
+  }
+
+  async function aceptarTerminos(version: string, tipo = 'terminos') {
+    const token = (await supabase.auth.getSession()).data.session?.access_token;
+    const backendUrl = (process.env as any).EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+
+    const response = await fetch(`${backendUrl}/api/terminos/aceptar`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ version, tipo }),
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.mensaje || 'Error al aceptar términos');
+    }
+
+    return result;
+  }
+
+  async function verificarTerminos(version: string, tipo = 'terminos') {
+    const backendUrl = (process.env as any).EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+
+    const response = await fetch(`${backendUrl}/api/terminos/verificar?version=${version}&tipo=${tipo}`);
+
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.mensaje || 'Error al verificar términos');
+    }
+
+    return result;
+  }
+
+  async function conectarStripeConnect() {
+    const token = (await supabase.auth.getSession()).data.session?.access_token;
+    const backendUrl = (process.env as any).EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+
+    const response = await fetch(`${backendUrl}/api/artistas/stripe-connect/account`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        email: usuario?.email,
+        nombre: usuario?.nombre_artistico || usuario?.nombre,
+      }),
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.mensaje || 'Error al conectar Stripe Connect');
+    }
+
+    return result;
+  }
+
+  async function obtenerStripeConnectStatus() {
+    const token = (await supabase.auth.getSession()).data.session?.access_token;
+    const backendUrl = (process.env as any).EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+
+    const response = await fetch(`${backendUrl}/api/artistas/stripe-connect/status`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.mensaje || 'Error al obtener estado Stripe');
+    }
+
+    return result;
+  }
+
   return (
     <EntradasContext.Provider value={{
       entradas,
@@ -380,6 +655,19 @@ export function EntradasProvider({ children }: { children: React.ReactNode }) {
       listarResenas,
       listarNotificaciones,
       marcarNotificacionLeida,
+      crearTramo,
+      listarTramos,
+      crearReserva,
+      cancelarReserva,
+      crearTransferencia,
+      aceptarTransferencia,
+      crearFactura,
+      registrarAcceso,
+      obtenerAnalyticsEvento,
+      aceptarTerminos,
+      verificarTerminos,
+      conectarStripeConnect,
+      obtenerStripeConnectStatus,
     }}>
       {children}
     </EntradasContext.Provider>
