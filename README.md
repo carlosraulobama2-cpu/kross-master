@@ -1,141 +1,105 @@
 # Kroos Master
 
-App de venta de entradas para eventos con QR firmado, backend Express y soporte para Supabase + Stripe.
+App de ticketing de eventos con React Native + Expo, Supabase y Stripe.
 
-## Estructura
+## Requisitos
 
-```
-kroos master/
-├── frontend/              # App Expo (React Native)
-│   ├── src/
-│   │   ├── config/        # Supabase
-│   │   ├── context/       # Auth, entradas, settings
-│   │   ├── screens/       # Home, detalle, entradas, login, registro, pago, QR, perfil, ajustes, onboarding, splash
-│   │   └── navigation/    # Navegación
-│   ├── .env.example
-│   ├── .gitignore
-│   ├── app.json
-│   └── package.json
-├── backend/               # API REST Express (legacy / opcional)
-│   ├── src/
-│   │   ├── config/
-│   │   ├── controllers/
-│   │   ├── middleware/
-│   │   ├── models/
-│   │   ├── routes/
-│   │   └── utils/
-│   ├── .env.example
-│   ├── .gitignore
-│   └── package.json
-└── supabase/              # Proyecto Supabase
-    ├── schema.sql         # Tablas, RLS, índices y funciones
-    ├── seed.sql           # Datos de prueba
-    ├── migrations/
-    ├── functions/
-    │   ├── create-payment-intent/
-    │   ├── stripe-webhook/
-    │   └── validar-qr/
-    └── README.md
-```
-
-## Frontend
-
-### Requisitos
 - Node.js >= 18
+- npm >= 9
 - Expo CLI
-- Cuenta en Supabase
-- Cuenta en Stripe
+- Cuenta Supabase
+- Cuenta Stripe
+- EAS CLI (opcional, para builds nativos)
 
-### Instalación
+## Setup rápido
+
+1. Clonar el repo
+2. Copiar `.env.example` a `.env` en `frontend/` y `backend/`
+3. Completar variables de entorno
+4. Aplicar `supabase/schema.sql` en Supabase Cloud
+5. Ejecutar seed de `supabase/seed.sql` (opcional)
+
+## Variables de entorno
+
+### Frontend (`frontend/.env`)
+
+- `EXPO_PUBLIC_SUPABASE_URL`
+- `EXPO_PUBLIC_SUPABASE_ANON_KEY`
+- `EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY`
+- `EXPO_PUBLIC_BACKEND_URL`
+
+### Backend (`backend/.env`)
+
+- `PORT=3000`
+- `JWT_SECRET`
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `STRIPE_SECRET_KEY`
+- `STRIPE_WEBHOOK_SECRET`
+
+## Desarrollo
 
 ```bash
+# Backend
+cd backend
+npm install
+npm run dev
+
+# Frontend
 cd frontend
 npm install
-```
-
-### Variables de entorno
-
-Copiar `frontend/.env.example` como `frontend/.env` y completar:
-
-```env
-EXPO_PUBLIC_SUPABASE_URL=
-EXPO_PUBLIC_SUPABASE_ANON_KEY=
-EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY=
-```
-
-### Ejecutar
-
-```bash
 npx expo start
 ```
 
-## Backend (opcional)
-
-### Instalación
+## Tests
 
 ```bash
+# Backend
 cd backend
-npm install
+npm test
+
+# Frontend
+cd frontend
+npm run typecheck
 ```
 
-### Variables de entorno
-
-Copiar `backend/.env.example` como `backend/.env` y completar:
-
-```env
-PORT=3000
-JWT_SECRET=
-DB_PATH=./kroos_master.db
-STRIPE_SECRET_KEY=
-STRIPE_WEBHOOK_SECRET=
-```
-
-### Ejecutar
+## Build nativo
 
 ```bash
-npm start
+# Instalar EAS CLI
+npm install -g eas-cli
+
+# Build de desarrollo
+eas build --profile development --platform ios
+
+# Build de producción
+eas build --profile production --platform all
 ```
 
-## Supabase
+## Estructura
 
-1. Crear proyecto en https://supabase.com
-2. Ejecutar `supabase/schema.sql` en el SQL Editor
-3. Ejecutar `supabase/seed.sql` para datos de prueba
-4. Configurar variables de entorno en el frontend
-5. Desplegar Edge Functions de `supabase/functions/`
+- `frontend/` - App React Native + Expo
+- `backend/` - API Express + TypeScript
+- `supabase/` - Schema SQL y seed
 
-### Edge Functions
+## Scripts útiles
 
-- `create-payment-intent`: crea un PaymentIntent de Stripe
-- `stripe-webhook`: recibe notificaciones de Stripe
-- `validar-qr`: valida y marca entradas como usadas
+```bash
+# Backend
+npm run build      # Compilar TypeScript
+npm run dev        # Desarrollo con ts-node
+npm run watch      # Desarrollo con hot reload
+npm run check:env  # Validar variables de entorno
+npm test           # Tests unitarios
 
-## QR Code Data
-
-```json
-{
-  "ticket_id": "TK-...",
-  "event_id": "EV-2026-...",
-  "seat": "A-12",
-  "firma": "SIG-XXXXXXXX"
-}
+# Frontend
+npm start          # Expo dev server
+npm run android    # Android
+npm run ios        # iOS
+npm run web        # Web
+npm run typecheck  # Verificar tipos TypeScript
 ```
 
-## Flujo de pago
+## Licencia
 
-1. Usuario selecciona evento y asiento
-2. App navega a `PaymentScreen`
-3. `PaymentScreen` llama a Edge Function `create-payment-intent`
-4. Stripe devuelve `client_secret`
-5. App abre la pasarela de pago nativa
-6. Usuario paga con tarjeta / Apple Pay / Google Pay
-7. Stripe envía webhook a `stripe-webhook`
-8. App recibe éxito y genera la entrada QR
-
-## Notas
-
-- En desarrollo usar claves `pk_test_...` de Stripe
-- En producción cambiar a `pk_live_...`
-- No exponer claves secretas en el frontend
-- El webhook de Stripe debe estar configurado en el dashboard de Stripe
-- Usar `supabase migration new` y `supabase db push` para migraciones
+ISC

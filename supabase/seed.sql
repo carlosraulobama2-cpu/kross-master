@@ -1,17 +1,13 @@
--- Seed de datos de prueba para Kroos Master
--- Ejecutar en Supabase SQL Editor después del schema.sql
+-- Seed de datos para Supabase
 
--- Eventos
-INSERT INTO public.eventos (titulo, descripcion, lugar, categoria, fecha_evento, precio, aforo_total, entradas_disponibles, imagen_url)
-VALUES 
-  ('Urban Beat Fest 2026', 'Festival de música urbana con los mejores artistas del momento.', 'Auditorio Municipal', 'Conciertos', '2026-08-15T21:00:00', 25.00, 500, 500, 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=600&auto=format&fit=crop'),
-  ('Trap & Drill Night', 'Noche de trap y drill con DJs invitados.', 'Club Industrial', 'Festivales', '2026-08-28T23:30:00', 18.50, 300, 300, 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?q=80&w=600&auto=format&fit=crop'),
-  ('Match Day: Liga Final', 'Final de la liga. No te lo pierdas.', 'Estadio Central', 'Deportes', '2026-09-02T19:00:00', 40.00, 1000, 1000, 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=600&auto=format&fit=crop'),
-  ('Teatro: Hamlet', 'Obra de teatro clásica.', 'Teatro Principal', 'Teatro', '2026-09-10T20:00:00', 30.00, 200, 200, 'https://images.unsplash.com/photo-1503095396549-807759245b35?q=80&w=600&auto=format&fit=crop');
+INSERT INTO public.usuarios (id, email, nombre, rol, nombre_artistico, bio, telefono, sitio_web)
+VALUES
+  ('11111111-1111-1111-1111-111111111111', 'fan@kroos.local', 'Fan Uno', 'fan', NULL, 'Soy fan de eventos', NULL, NULL),
+  ('22222222-2222-2222-2222-222222222222', 'artista@kroos.local', 'Artista Uno', 'artista', 'DJ Kroos', 'Artista principal', '+34 600 000 000', 'https://artista.kroos.local')
+ON CONFLICT (email) DO NOTHING;
 
--- Usuario admin de prueba (password: admin123)
--- En Supabase auth, crear el usuario manualmente o por signup y luego insertar aquí su UUID
--- INSERT INTO public.usuarios (id, email, nombre, rol) VALUES ('UUID-DEL-USUARIO', 'admin@kroos.com', 'Admin', 'admin');
-
--- Usuario fan de prueba (password: fan123)
--- INSERT INTO public.usuarios (id, email, nombre, rol) VALUES ('UUID-DEL-USUARIO', 'fan@kroos.com', 'Fan', 'fan');
+INSERT INTO public.eventos (id, titulo, descripcion, lugar, categoria, fecha_evento, precio, aforo_total, entradas_disponibles, imagen_url, artista_id)
+VALUES
+  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'Festival de Verano', 'Festival al aire libre', 'Madrid', 'Festivales', '2026-08-15T20:00:00Z', 45.00, 500, 500, 'https://images.kroos.local/festival.jpg', '22222222-2222-2222-2222-222222222222'),
+  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'Concierto de Rock', 'Banda internacional', 'Barcelona', 'Conciertos', '2026-09-10T21:00:00Z', 35.00, 300, 300, 'https://images.kroos.local/rock.jpg', '22222222-2222-2222-2222-222222222222')
+ON CONFLICT (id) DO NOTHING;

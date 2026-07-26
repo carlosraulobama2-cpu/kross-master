@@ -1,0 +1,113 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.crear = crear;
+exports.listar = listar;
+exports.obtener = obtener;
+exports.comprar = comprar;
+const supabase_1 = require("../config/supabase");
+async function crear(req, res) {
+    try {
+        const { titulo, descripcion, lugar, categoria, fecha_evento, precio, aforo_total, imagen_url } = req.body;
+        if (!titulo || !fecha_evento || !precio || !aforo_total) {
+            return res.status(400).json({ mensaje: 'titulo, fecha_evento, precio y aforo_total son requeridos' });
+        }
+        const { data, error } = await supabase_1.supabase
+            .from('eventos')
+            .insert([{
+                titulo,
+                descripcion,
+                lugar,
+                categoria,
+                fecha_evento,
+                precio,
+                aforo_total,
+                entradas_disponibles: aforo_total,
+                imagen_url,
+            }])
+            .select()
+            .single();
+        if (error)
+            throw error;
+        res.status(201).json({ evento: data });
+    }
+    catch (error) {
+        res.status(500).json({ mensaje: 'Error al crear evento', error: error.message });
+    }
+}
+async function listar(req, res) {
+    try {
+        const { categoria } = req.query;
+        let query = supabase_1.supabase.from('eventos').select('*');
+        if (categoria) {
+            query = query.eq('categoria', categoria);
+        }
+        const { data, error } = await query;
+        if (error)
+            throw error;
+        res.json({ eventos: data || [] });
+    }
+    catch (error) {
+        res.status(500).json({ mensaje: 'Error al listar eventos', error: error.message });
+    }
+}
+async function obtener(req, res) {
+    try {
+        const { id } = req.params;
+        const { data, error } = await supabase_1.supabase
+            .from('eventos')
+            .select('*')
+            .eq('id', id)
+            .single();
+        if (error || !data) {
+            return res.status(404).json({ mensaje: 'Evento no encontrado' });
+        }
+        res.json({ evento: data });
+    }
+    catch (error) {
+        res.status(500).json({ mensaje: 'Error al obtener evento', error: error.message });
+    }
+}
+async function comprar(req, res) {
+    try {
+        const { id } = req.params;
+        const { asiento } = req.body;
+        const usuarioId = req.usuario.id;
+        const { data: evento, error: eventoError } = await supabase_1.supabase
+            .from('eventos')
+            .select('*')
+            .eq('id', id)
+            .single();
+        if (eventoError || !evento) {
+            return res.status(404).json({ mensaje: 'Evento no encontrado' });
+        }
+        if (evento.entradas_disponibles <= 0) {
+            return res.status(409).json({ mensaje: 'No hay entradas disponibles' });
+        }
+        const ticketId = `TK-${Math.floor(Math.random() * 9000) + 1000}`;
+        const eventId = `EV-2026-${evento.id}`;
+        const { buildQrPayload } = require('../utils/qrSigner');
+        const codigoQr = buildQrPayload({ ticketId, eventId, seat: asiento || 'A-12' });
+        const { data: entrada, error: entradaError } = await supabase_1.supabase
+            .from('entradas')
+            .insert([{
+                evento_id: evento.id,
+                usuario_id: usuarioId,
+                codigo_qr: codigoQr,
+                asiento: asiento || 'A-12',
+                precio_pagado: evento.precio,
+                estado: 'VALIDO',
+            }])
+            .select()
+            .single();
+        if (entradaError)
+            throw entradaError;
+        await supabase_1.supabase
+            .from('eventos')
+            .update({ entradas_disponibles: (evento.entradas_disponibles || 0) - 1 })
+            .eq('id', evento.id);
+        res.status(201).json({ entrada });
+    }
+    catch (error) {
+        res.status(500).json({ mensaje: 'Error al comprar entrada', error: error.message });
+    }
+}

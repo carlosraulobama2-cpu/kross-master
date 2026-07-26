@@ -13,7 +13,12 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.kroosmaster.app"
+      "bundleIdentifier": "com.kroosmaster.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Kroos Master necesita acceso a la cámara para escanear códigos QR de entradas.",
+        "NSPhotoLibraryUsageDescription": "Kroos Master necesita acceso a tus fotos para seleccionar imágenes de perfil y eventos.",
+        "NSNotificationsUsageDescription": "Kroos Master envía notificaciones sobre tus eventos y entradas."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -21,19 +26,36 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "package": "com.kroosmaster.app"
+      "package": "com.kroosmaster.app",
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "POST_NOTIFICATIONS"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "@stripe/stripe-react-native",
+      "expo-notifications",
       [
         "expo-camera",
         {
           "cameraPermission": "Kroos Master necesita acceso a la cámara para escanear códigos QR de entradas."
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Kroos Master necesita acceso a tus fotos para seleccionar imágenes de perfil y eventos."
+        }
       ]
-    ]
+    ],
+    "extra": {
+      "supabaseUrl": "TU_SUPABASE_URL",
+      "supabaseAnonKey": "TU_SUPABASE_ANON_KEY",
+      "backendUrl": "http://localhost:3000"
+    }
   }
 }
