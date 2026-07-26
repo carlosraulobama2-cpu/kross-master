@@ -55,7 +55,7 @@
     "extra": {
       "supabaseUrl": "TU_SUPABASE_URL",
       "supabaseAnonKey": "TU_SUPABASE_ANON_KEY",
-      "backendUrl": "http://localhost:3000"
+      "backendUrl": "https://kroos-master-backend.onrender.com"
     }
   }
 }

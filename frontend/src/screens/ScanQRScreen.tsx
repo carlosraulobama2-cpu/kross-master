@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { StyleSheet, Text, View, TouchableOpacity, Alert, ActivityIndicator, Animated, Easing } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../config/supabase';
+import * as Haptics from 'expo-haptics';
 
 interface ScanQRScreenProps {
   navigation: any;
@@ -12,15 +13,51 @@ export default function ScanQRScreen({ navigation, route }: any) {
   const [permission, requestPermission] = useCameraPermissions();
   const [escaneando, setEscaneando] = useState<boolean>(true);
   const [resultado, setResultado] = useState<any>(null);
+  const [mostrarAnimacion, setMostrarAnimacion] = useState(false);
   const eventoId = route?.params?.eventoId;
   const codigoAcceso = route?.params?.codigoAcceso;
   const usuarioId = route?.params?.usuarioId;
+
+  const scaleAnim = useRef(new Animated.Value(0)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
+  const flashAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (!permission?.granted) {
       requestPermission();
     }
   }, [permission]);
+
+  const reproducirAnimacionExito = (): void => {
+    setMostrarAnimacion(true);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    Animated.sequence([
+      Animated.timing(flashAnim, {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+      Animated.timing(flashAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.parallel([
+        Animated.timing(scaleAnim, {
+          toValue: 1,
+          duration: 400,
+          easing: Easing.elastic(1),
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacityAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+  };
 
   const handleBarcodeScanned = async (event: any): Promise<void> => {
     if (!escaneando) return;
@@ -51,6 +88,7 @@ export default function ScanQRScreen({ navigation, route }: any) {
       }
 
       setResultado(data);
+      reproducirAnimacionExito();
     } catch (e) {
       Alert.alert('Error', (e as Error).message);
       setEscaneando(true);
@@ -110,6 +148,9 @@ export default function ScanQRScreen({ navigation, route }: any) {
                   onPress={() => {
                     setResultado(null);
                     setEscaneando(true);
+                    setMostrarAnimacion(false);
+                    scaleAnim.setValue(0);
+                    opacityAnim.setValue(0);
                   }}
                 >
                   <Text style={styles.scanAgainText}>Escanear otro</Text>
@@ -121,6 +162,19 @@ export default function ScanQRScreen({ navigation, route }: any) {
           </View>
         </View>
       </CameraView>
+
+      {mostrarAnimacion && (
+        <Animated.View style={[styles.successOverlay, { opacity: opacityAnim }]}>
+          <Animated.View style={[styles.flashBackground, { opacity: flashAnim }]} />
+          <Animated.View style={[styles.successContent, { transform: [{ scale: scaleAnim }] }]}>
+            <View style={styles.successIconContainer}>
+              <Ionicons name="checkmark-circle" size={80} color="#00FF87" />
+            </View>
+            <Text style={styles.successText}>VÁLIDO</Text>
+            <Text style={styles.successSubtext}>Acceso permitido</Text>
+          </Animated.View>
+        </Animated.View>
+      )}
     </View>
   );
 }
@@ -245,5 +299,48 @@ const styles = StyleSheet.create({
     color: '#0D0D12',
     fontWeight: '800',
     fontSize: 14,
+  },
+  successOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+  },
+  flashBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#00FF87',
+  },
+  successContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  successIconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(0, 255, 135, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  successText: {
+    fontSize: 36,
+    fontWeight: '800',
+    color: '#00FF87',
+    letterSpacing: 2,
+    marginBottom: 8,
+  },
+  successSubtext: {
+    fontSize: 16,
+    color: '#A1A1A1',
+    fontWeight: '600',
   },
 });

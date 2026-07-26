@@ -76,11 +76,42 @@ eas build --profile development --platform ios
 eas build --profile production --platform all
 ```
 
+## Deploy
+
+### Backend en Render
+
+1. Crear cuenta en [Render](https://render.com)
+2. Crear nuevo Web Service
+3. Conectar el repositorio de GitHub
+4. Configurar:
+   - **Root Directory**: `backend`
+   - **Runtime**: Node.js
+   - **Build Command**: `npm install && npm run build`
+   - **Start Command**: `npm start`
+   - **Plan**: Free o Starter
+5. Agregar variables de entorno:
+   - `SUPABASE_URL`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `STRIPE_SECRET_KEY`
+   - `STRIPE_WEBHOOK_SECRET`
+   - `JWT_SECRET` (generar uno aleatorio)
+6. Deploy automático en cada push a `main`
+7. La URL pública será: `https://kross-master.onrender.com`
+
+### Frontend en Expo EAS
+
+1. Instalar EAS CLI: `npm install -g eas-cli`
+2. Login: `eas login`
+3. Configurar proyecto: `eas build:configure`
+4. Build iOS: `eas build --profile production --platform ios`
+5. Build Android: `eas build --profile production --platform android`
+
 ## Estructura
 
 - `frontend/` - App React Native + Expo
 - `backend/` - API Express + TypeScript
 - `supabase/` - Schema SQL y seed
+- `render.yaml` - Configuración de deploy en Render
 
 ## Scripts útiles
 

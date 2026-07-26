@@ -10,7 +10,8 @@
     "watch": "nodemon --watch src --ext ts --exec ts-node src/app.ts",
     "check:env": "ts-node scripts/check-env.ts",
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "postinstall": "npm run build"
   },
   "keywords": [],
   "author": "",
@@ -38,5 +39,8 @@
     "ts-jest": "^29.4.12",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
