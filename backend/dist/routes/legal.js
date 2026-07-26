@@ -1,15 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Alert } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useEntradas } from '../context/EntradasContext';
-
-interface TermsScreenProps {
-  navigation: any;
-}
-
-const TERMS_VERSION = '1.0';
-
-const TERMS_TEXT = `TÉRMINOS Y CONDICIONES DE USO Y CONTRATACIÓN DE KROOS MASTER
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const router = (0, express_1.Router)();
+router.get('/terminos', (_req, res) => {
+    res.json({
+        version: '1.0',
+        fechaActualizacion: '2026-07-26',
+        titulo: 'Términos y Condiciones de Uso y Contratación de Kroos Master',
+        contenido: `TÉRMINOS Y CONDICIONES DE USO Y CONTRATACIÓN DE KROOS MASTER
 Última actualización: 26 de julio de 2026
 
 I. Marco Legal y Definiciones Generales
@@ -98,158 +96,56 @@ Nulidad Parcial: Si cualquier cláusula de este documento es declarada nula o in
 
 Resolución Extrajudicial de Conflictos: En cumplimiento del Art. 14.1 del Reglamento (UE) 524/2013, la Comisión Europea facilita una plataforma de resolución de litigios en línea accesible en: https://ec.europa.eu/consumers/odr.
 
-Jurisdicción y Ley Aplicable: Estos Términos se rigen por la legislación española. Para la resolución de cualquier controversia, las partes se someten a los Juzgados y Tribunales de la ciudad de Jaén (España), salvo que la ley de consumidores disponga un fuero distinto.`;
-
-export default function TermsScreen({ navigation }: TermsScreenProps) {
-  const { verificarTerminos, aceptarTerminos } = useEntradas();
-  const [version, setVersion] = useState(TERMS_VERSION);
-  const [aceptado, setAceptado] = useState(false);
-  const [cargando, setCargando] = useState(true);
-  const [termsText, setTermsText] = useState('');
-
-  useEffect(() => {
-    cargarTerminos();
-    verificarAceptacion();
-  }, []);
-
-  async function cargarTerminos() {
-    try {
-      const backendUrl = (process.env as any).EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
-      const response = await fetch(`${backendUrl}/api/legal/terminos`);
-      const data = await response.json();
-      if (data.contenido) {
-        setTermsText(data.contenido);
-      } else {
-        setTermsText(TERMS_TEXT);
-      }
-    } catch (e) {
-      console.error('Error cargando términos:', e);
-      setTermsText(TERMS_TEXT);
-    }
-  }
-
-  async function verificarAceptacion() {
-    try {
-      const result = await verificarTerminos(version);
-      setAceptado(result.aceptado);
-    } catch (e) {
-      console.error('Error verificando términos:', e);
-    } finally {
-      setCargando(false);
-    }
-  }
-
-  const handleAceptar = async (): Promise<void> => {
-    try {
-      setCargando(true);
-      await aceptarTerminos(version);
-      setAceptado(true);
-      Alert.alert('Éxito', 'Términos aceptados correctamente');
-      navigation.goBack();
-    } catch (e: any) {
-      Alert.alert('Error', e.message || 'No se pudo aceptar');
-    } finally {
-      setCargando(false);
-    }
-  };
-
-  if (cargando) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.loading}>Cargando...</Text>
-      </View>
-    );
-  }
-
-  return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Términos y Condiciones</Text>
-        <View style={{ width: 24 }} />
-      </View>
-
-      <View style={styles.content}>
-        <Text style={styles.version}>Versión {version}</Text>
-        <Text style={styles.date}>Última actualización: 26 de julio de 2026</Text>
-
-        <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false}>
-          <Text style={styles.termsText}>{termsText}</Text>
-        </ScrollView>
-
-        <TouchableOpacity
-          style={[styles.acceptButton, aceptado && styles.acceptButtonDisabled]}
-          onPress={handleAceptar}
-          disabled={aceptado || cargando}
-        >
-          <Text style={styles.acceptButtonText}>
-            {aceptado ? 'Aceptado' : 'Aceptar términos'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0D0D12',
-  },
-  loading: {
-    color: '#FFFFFF',
-    textAlign: 'center',
-    marginTop: 40,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 15,
-    paddingBottom: 10,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  content: {
-    padding: 20,
-  },
-  version: {
-    color: '#8E8E93',
-    fontSize: 12,
-    marginBottom: 4,
-    textAlign: 'center',
-  },
-  date: {
-    color: '#8E8E93',
-    fontSize: 11,
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  termsText: {
-    color: '#A1A1A1',
-    fontSize: 13,
-    lineHeight: 20,
-    marginBottom: 20,
-  },
-  acceptButton: {
-    backgroundColor: '#00FF87',
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  acceptButtonDisabled: {
-    opacity: 0.6,
-  },
-  acceptButtonText: {
-    color: '#0D0D12',
-    fontWeight: '800',
-    fontSize: 15,
-  },
+Jurisdicción y Ley Aplicable: Estos Términos se rigen por la legislación española. Para la resolución de cualquier controversia, las partes se someten a los Juzgados y Tribunales de la ciudad de Jaén (España), salvo que la ley de consumidores disponga un fuero distinto.`
+    });
 });
+router.get('/privacidad', (_req, res) => {
+    res.json({
+        version: '1.0',
+        titulo: 'Política de Privacidad de Kroos Master',
+        contenido: `POLÍTICA DE PRIVACIDAD DE KROOS MASTER
+Última actualización: 26 de julio de 2026
+
+1. Responsable del Tratamiento
+Kroos Master, con domicilio en Jaén (España), es responsable del tratamiento de los datos personales facilitados a través de la aplicación.
+
+2. Datos Recogidos
+- Datos de registro: nombre, email, teléfono, rol.
+- Datos de uso: eventos consultados, entradas compradas, escaneos.
+- Datos de pago: gestionados por Stripe, no almacenados por Kroos Master.
+- Datos de dispositivo: modelo, sistema operativo, idioma.
+
+3. Finalidad del Tratamiento
+- Gestionar el registro y acceso a la plataforma.
+- Procesar compras y emitir entradas digitales.
+- Validar accesos a eventos.
+- Enviar notificaciones relacionadas con el servicio.
+- Cumplir obligaciones legales y fiscales.
+
+4. Base Legal
+- Ejecución contractual: procesamiento de entradas y acceso a eventos.
+- Consentimiento: envío de comunicaciones comerciales.
+- Obligación legal: facturación, retención de datos fiscales.
+- Interés legítimo: prevención de fraudes y seguridad.
+
+5. Conservación de Datos
+- Datos de cuenta: mientras la cuenta esté activa.
+- Datos de transacciones: 5 años por obligación fiscal.
+- Datos de accesos y escaneos: 2 años para auditoría.
+- Cookies y datos de sesión: según política de cookies.
+
+6. Derechos del Usuario
+- Acceso, rectificación y supresión.
+- Limitación y oposición al tratamiento.
+- Portabilidad de datos.
+- Retirada del consentimiento.
+- Reclamación ante la Agencia Española de Protección de Datos (AEPD).
+
+7. Seguridad
+Kroos Master implementa medidas técnicas y organizativas para proteger los datos personales, incluyendo cifrado en tránsito (HTTPS/TLS), control de acceso basado en roles y auditorías periódicas.
+
+8. Contacto
+Para ejercer tus derechos o consultas sobre protección de datos: soporte@kroosmaster.com`
+    });
+});
+exports.default = router;

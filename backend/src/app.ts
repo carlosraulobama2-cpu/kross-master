@@ -20,6 +20,7 @@ import facturaRoutes from './routes/facturas';
 import analyticsRoutes from './routes/analytics';
 import terminoRoutes from './routes/terminos';
 import staffRoutes from './routes/staff';
+import legalRoutes from './routes/legal';
 
 const app = express();
 
@@ -48,6 +49,7 @@ app.use('/api/facturas', facturaRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/terminos', terminoRoutes);
 app.use('/api/staff', staffRoutes);
+app.use('/api/legal', legalRoutes);
 
 app.use((_req, res) => {
   res.status(404).json({ mensaje: 'Ruta no encontrada' });

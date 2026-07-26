@@ -1,15 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Alert } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useEntradas } from '../context/EntradasContext';
+import { Router, Response } from 'express';
 
-interface TermsScreenProps {
-  navigation: any;
-}
+const router = Router();
 
-const TERMS_VERSION = '1.0';
-
-const TERMS_TEXT = `TÉRMINOS Y CONDICIONES DE USO Y CONTRATACIÓN DE KROOS MASTER
+router.get('/terminos', (_req: any, res: Response) => {
+  res.json({
+    version: '1.0',
+    fechaActualizacion: '2026-07-26',
+    titulo: 'Términos y Condiciones de Uso y Contratación de Kroos Master',
+    contenido: `TÉRMINOS Y CONDICIONES DE USO Y CONTRATACIÓN DE KROOS MASTER
 Última actualización: 26 de julio de 2026
 
 I. Marco Legal y Definiciones Generales
@@ -98,158 +96,95 @@ Nulidad Parcial: Si cualquier cláusula de este documento es declarada nula o in
 
 Resolución Extrajudicial de Conflictos: En cumplimiento del Art. 14.1 del Reglamento (UE) 524/2013, la Comisión Europea facilita una plataforma de resolución de litigios en línea accesible en: https://ec.europa.eu/consumers/odr.
 
-Jurisdicción y Ley Aplicable: Estos Términos se rigen por la legislación española. Para la resolución de cualquier controversia, las partes se someten a los Juzgados y Tribunales de la ciudad de Jaén (España), salvo que la ley de consumidores disponga un fuero distinto.`;
-
-export default function TermsScreen({ navigation }: TermsScreenProps) {
-  const { verificarTerminos, aceptarTerminos } = useEntradas();
-  const [version, setVersion] = useState(TERMS_VERSION);
-  const [aceptado, setAceptado] = useState(false);
-  const [cargando, setCargando] = useState(true);
-  const [termsText, setTermsText] = useState('');
-
-  useEffect(() => {
-    cargarTerminos();
-    verificarAceptacion();
-  }, []);
-
-  async function cargarTerminos() {
-    try {
-      const backendUrl = (process.env as any).EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
-      const response = await fetch(`${backendUrl}/api/legal/terminos`);
-      const data = await response.json();
-      if (data.contenido) {
-        setTermsText(data.contenido);
-      } else {
-        setTermsText(TERMS_TEXT);
-      }
-    } catch (e) {
-      console.error('Error cargando términos:', e);
-      setTermsText(TERMS_TEXT);
-    }
-  }
-
-  async function verificarAceptacion() {
-    try {
-      const result = await verificarTerminos(version);
-      setAceptado(result.aceptado);
-    } catch (e) {
-      console.error('Error verificando términos:', e);
-    } finally {
-      setCargando(false);
-    }
-  }
-
-  const handleAceptar = async (): Promise<void> => {
-    try {
-      setCargando(true);
-      await aceptarTerminos(version);
-      setAceptado(true);
-      Alert.alert('Éxito', 'Términos aceptados correctamente');
-      navigation.goBack();
-    } catch (e: any) {
-      Alert.alert('Error', e.message || 'No se pudo aceptar');
-    } finally {
-      setCargando(false);
-    }
-  };
-
-  if (cargando) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.loading}>Cargando...</Text>
-      </View>
-    );
-  }
-
-  return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Términos y Condiciones</Text>
-        <View style={{ width: 24 }} />
-      </View>
-
-      <View style={styles.content}>
-        <Text style={styles.version}>Versión {version}</Text>
-        <Text style={styles.date}>Última actualización: 26 de julio de 2026</Text>
-
-        <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false}>
-          <Text style={styles.termsText}>{termsText}</Text>
-        </ScrollView>
-
-        <TouchableOpacity
-          style={[styles.acceptButton, aceptado && styles.acceptButtonDisabled]}
-          onPress={handleAceptar}
-          disabled={aceptado || cargando}
-        >
-          <Text style={styles.acceptButtonText}>
-            {aceptado ? 'Aceptado' : 'Aceptar términos'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0D0D12',
-  },
-  loading: {
-    color: '#FFFFFF',
-    textAlign: 'center',
-    marginTop: 40,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 15,
-    paddingBottom: 10,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  content: {
-    padding: 20,
-  },
-  version: {
-    color: '#8E8E93',
-    fontSize: 12,
-    marginBottom: 4,
-    textAlign: 'center',
-  },
-  date: {
-    color: '#8E8E93',
-    fontSize: 11,
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  termsText: {
-    color: '#A1A1A1',
-    fontSize: 13,
-    lineHeight: 20,
-    marginBottom: 20,
-  },
-  acceptButton: {
-    backgroundColor: '#00FF87',
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  acceptButtonDisabled: {
-    opacity: 0.6,
-  },
-  acceptButtonText: {
-    color: '#0D0D12',
-    fontWeight: '800',
-    fontSize: 15,
-  },
+Jurisdicción y Ley Aplicable: Estos Términos se rigen por la legislación española. Para la resolución de cualquier controversia, las partes se someten a los Juzgados y Tribunales de la ciudad de Jaén (España), salvo que la ley de consumidores disponga un fuero distinto.`
+  });
 });
+
+router.get('/privacidad', (_req: any, res: Response) => {
+  res.json({
+    version: '1.0',
+    titulo: 'Política de Privacidad de Kroos Master',
+    contenido: `POLÍTICA DE PRIVACIDAD DE KROOS MASTER
+Última actualización: 26 de julio de 2026
+
+1. Responsable del Tratamiento
+Kroos Master, con domicilio en Jaén (España), es responsable del tratamiento de los datos personales facilitados a través de la aplicación.
+
+2. Datos Recogidos
+- Datos de registro: nombre, email, teléfono, rol.
+- Datos de uso: eventos consultados, entradas compradas, escaneos.
+- Datos de pago: gestionados por Stripe, no almacenados por Kroos Master.
+- Datos de dispositivo: modelo, sistema operativo, idioma.
+
+3. Finalidad del Tratamiento
+- Gestionar el registro y acceso a la plataforma.
+- Procesar compras y emitir entradas digitales.
+- Validar accesos a eventos.
+- Enviar notificaciones relacionadas con el servicio.
+- Cumplir obligaciones legales y fiscales.
+
+4. Base Legal
+- Ejecución contractual: procesamiento de entradas y acceso a eventos.
+- Consentimiento: envío de comunicaciones comerciales.
+- Obligación legal: facturación, retención de datos fiscales.
+- Interés legítimo: prevención de fraudes y seguridad.
+
+5. Conservación de Datos
+- Datos de cuenta: mientras la cuenta esté activa.
+- Datos de transacciones: 5 años por obligación fiscal.
+- Datos de accesos y escaneos: 2 años para auditoría.
+- Cookies y datos de sesión: según política de cookies.
+
+6. Derechos del Usuario
+- Acceso, rectificación y supresión.
+- Limitación y oposición al tratamiento.
+- Portabilidad de datos.
+- Retirada del consentimiento.
+- Reclamación ante la Agencia Española de Protección de Datos (AEPD).
+
+7. Seguridad
+Kroos Master implementa medidas técnicas y organizativas para proteger los datos personales, incluyendo cifrado en tránsito (HTTPS/TLS), control de acceso basado en roles y auditorías periódicas.
+
+8. Contacto
+Para ejercer tus derechos o consultas sobre protección de datos: soporte@kroosmaster.com`
+  });
+});
+
+router.get('/organizador', (_req: any, res: Response) => {
+  res.json({
+    version: '1.0',
+    titulo: 'Condiciones para Organizadores de Eventos en Kroos Master',
+    contenido: `CONDICIONES Y RESPONSABILIDADES PARA LA PUBLICACIÓN DE EVENTOS EN KROOS MASTER
+Al publicar tu evento en Kroos Master, aceptas los siguientes acuerdos:
+
+1. Licencias y Autorizaciones Legales
+Permisos del Local: Declaras contar con la reserva, contrato o permiso expreso del recinto o sala donde se celebrará el evento.
+
+Derecho de Autor (SGAE / Derechos de Ejecución): Declaras ser el titular de las obras a interpretar o contar con las licencias correspondientes para la comunicación pública de música en directo. Kroos Master no asume pagos de derechos de autor derivados del show.
+
+Seguros y Normativa: Asumes la responsabilidad de disponer de los seguros de responsabilidad civil exigidos por la ley local/autonómica para la realización de espectáculos públicos.
+
+2. Aforo y Control de Accesos
+Límite de Aforo: Te comprometes a fijar un número total de entradas que nunca supere el aforo máximo legal permitido en el recinto.
+
+Uso Exclusivo del Escáner: El control de accesos debe realizarse a través de la herramienta oficial de la app mediante lectura de códigos QR. Kroos Master no se hace responsable de sobreaforos causados por accesos no registrados o venta en puerta fuera del sistema.
+
+Asignación de Staff: Eres el único responsable del uso que tu equipo o porteros hagan de los permisos de escaneo (PIN o invitaciones de correo) que otorgues desde tu panel de control.
+
+3. Cobros, Comisiones y Facturación
+Vinculación con Stripe Connect: Aceptas que todos los ingresos procedentes de la venta de entradas se procesen y transfieran a través de tu cuenta de Stripe Connect vinculada.
+
+Retención de Gastos de Gestión: Aceptas que Kroos Master aplique y retenga directamente la comisión o gasto de gestión acordado por cada entrada vendida.
+
+Obligaciones Fiscales: Eres el único responsable de declarar los ingresos obtenidos por la venta de entradas ante la hacienda pública (Hacienda/AEAT) y de emitir la correspondiente factura simplificada o ticket al comprador si este la solicita.
+
+4. Cancelaciones, Aplazamientos y Devoluciones
+Responsabilidad de Reembolso: En caso de cancelación definitiva del show, te comprometes a asumir la devolución íntegra del importe de las entradas a los compradores. La orden de reembolso se tramitará desde tu panel y los fondos se devolverán desde tu cuenta de Stripe.
+
+Cambios de Fecha u Horario: Si el evento cambia de fecha o ubicación, te comprometes a notificarlo a los asistentes a través de las herramientas de la app con un mínimo de 48 horas de antelación.
+
+Cancelación de Cuenta por Incumplimiento: Si Kroos Master detecta un evento falso, fraudulento o con indicios de estafa, se reserva el derecho de congelar las transferencias, cancelar el evento y dar de baja la cuenta del organizador de inmediato.`
+  });
+});
+
+export default router;

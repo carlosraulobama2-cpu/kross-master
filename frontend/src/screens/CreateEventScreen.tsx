@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Image } from 'react-native';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Image, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../config/supabase';
 import { useEntradas } from '../context/EntradasContext';
@@ -12,7 +12,7 @@ interface CreateEventScreenProps {
 const CATEGORIAS = ['Conciertos', 'Festivales', 'Deportes', 'Teatro', 'Otro'];
 
 export default function CreateEventScreen({ navigation }: CreateEventScreenProps) {
-  const { usuario } = useEntradas();
+  const { usuario, aceptarTerminos } = useEntradas();
   const [titulo, setTitulo] = useState<string>('');
   const [descripcion, setDescripcion] = useState<string>('');
   const [lugar, setLugar] = useState<string>('');
@@ -23,6 +23,8 @@ export default function CreateEventScreen({ navigation }: CreateEventScreenProps
   const [imagenUrl, setImagenUrl] = useState<string>('');
   const [imagenLocal, setImagenLocal] = useState<string>('');
   const [cargando, setCargando] = useState<boolean>(false);
+  const [aceptaTerminosArtista, setAceptaTerminosArtista] = useState<boolean>(false);
+  const [mostrarTerminos, setMostrarTerminos] = useState<boolean>(false);
 
   const seleccionarImagen = async (): Promise<void> => {
     try {
@@ -53,6 +55,11 @@ export default function CreateEventScreen({ navigation }: CreateEventScreenProps
       return;
     }
 
+    if (!aceptaTerminosArtista) {
+      Alert.alert('Términos requeridos', 'Debes aceptar las Condiciones para Organizadores antes de publicar');
+      return;
+    }
+
     try {
       setCargando(true);
 
@@ -73,6 +80,8 @@ export default function CreateEventScreen({ navigation }: CreateEventScreenProps
         .single();
 
       if (error) throw error;
+
+      await aceptarTerminos('1.0', 'terminos_artista');
 
       Alert.alert('Éxito', 'Evento creado correctamente', [
         { text: 'OK', onPress: () => navigation.goBack() },
@@ -179,6 +188,19 @@ export default function CreateEventScreen({ navigation }: CreateEventScreenProps
 
         {imagenLocal ? <Image source={{ uri: imagenLocal }} style={styles.previewImage} /> : null}
 
+        <TouchableOpacity style={styles.termsRow} onPress={() => setMostrarTerminos(true)}>
+          <Text style={styles.termsLink}>Ver Condiciones para Organizadores de Eventos</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.termsCheckboxRow} onPress={() => setAceptaTerminosArtista(!aceptaTerminosArtista)}>
+          <View style={[styles.checkbox, aceptaTerminosArtista && styles.checkboxChecked]}>
+            {aceptaTerminosArtista && <Ionicons name="checkmark" size={16} color="#0D0D12" />}
+          </View>
+          <Text style={styles.termsCheckboxText}>
+            He leído y acepto las Condiciones y Responsabilidades para la Publicación de Eventos
+          </Text>
+        </TouchableOpacity>
+
         <TouchableOpacity
           style={[styles.createButton, cargando && styles.createButtonDisabled]}
           onPress={handleCrear}
@@ -187,10 +209,62 @@ export default function CreateEventScreen({ navigation }: CreateEventScreenProps
           {cargando ? (
             <ActivityIndicator size="small" color="#0D0D12" />
           ) : (
-            <Text style={styles.createButtonText}>Crear Evento</Text>
+            <Text style={styles.createButtonText}>Publicar Concierto</Text>
           )}
         </TouchableOpacity>
       </View>
+
+      <Modal visible={mostrarTerminos} animationType="slide" presentationStyle="pageSheet">
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setMostrarTerminos(false)}>
+              <Ionicons name="close" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Condiciones para Organizadores</Text>
+            <View style={{ width: 24 }} />
+          </View>
+          <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+            <Text style={styles.modalText}>
+              CONDICIONES Y RESPONSABILIDADES PARA LA PUBLICACIÓN DE EVENTOS EN KROOS MASTER
+              {'\n\n'}
+              1. Licencias y Autorizaciones Legales
+              {'\n'}
+              Permisos del Local: Declaras contar con la reserva, contrato o permiso expreso del recinto o sala donde se celebrará el evento.
+              {'\n\n'}
+              Derecho de Autor (SGAE / Derechos de Ejecución): Declaras ser el titular de las obras a interpretar o contar con las licencias correspondientes para la comunicación pública de música en directo. Kroos Master no asume pagos de derechos de autor derivados del show.
+              {'\n\n'}
+              Seguros y Normativa: Asumes la responsabilidad de disponer de los seguros de responsabilidad civil exigidos por la ley local/autonómica para la realización de espectáculos públicos.
+              {'\n\n'}
+              2. Aforo y Control de Accesos
+              {'\n'}
+              Límite de Aforo: Te comprometes a fijar un número total de entradas que nunca supere el aforo máximo legal permitido en el recinto.
+              {'\n\n'}
+              Uso Exclusivo del Escáner: El control de accesos debe realizarse a través de la herramienta oficial de la app mediante lectura de códigos QR. Kroos Master no se hace responsable de sobreaforos causados por accesos no registrados o venta en puerta fuera del sistema.
+              {'\n\n'}
+              Asignación de Staff: Eres el único responsable del uso que tu equipo o porteros hagan de los permisos de escaneo (PIN o invitaciones de correo) que otorgues desde tu panel de control.
+              {'\n\n'}
+              3. Cobros, Comisiones y Facturación
+              {'\n'}
+              Vinculación con Stripe Connect: Aceptas que todos los ingresos procedentes de la venta de entradas se procesen y transfieran a través de tu cuenta de Stripe Connect vinculada.
+              {'\n\n'}
+              Retención de Gastos de Gestión: Aceptas que Kroos Master aplique y retenga directamente la comisión o gasto de gestión acordado por cada entrada vendida.
+              {'\n\n'}
+              Obligaciones Fiscales: Eres el único responsable de declarar los ingresos obtenidos por la venta de entradas ante la hacienda pública (Hacienda/AEAT) y de emitir la correspondiente factura simplificada o ticket al comprador si este la solicita.
+              {'\n\n'}
+              4. Cancelaciones, Aplazamientos y Devoluciones
+              {'\n'}
+              Responsabilidad de Reembolso: En caso de cancelación definitiva del show, te comprometes a asumir la devolución íntegra del importe de las entradas a los compradores. La orden de reembolso se tramitará desde tu panel y los fondos se devolverán desde tu cuenta de Stripe.
+              {'\n\n'}
+              Cambios de Fecha u Horario: Si el evento cambia de fecha o ubicación, te comprometes a notificarlo a los asistentes a través de las herramientas de la app con un mínimo de 48 horas de antelación.
+              {'\n\n'}
+              Cancelación de Cuenta por Incumplimiento: Si Kroos Master detecta un evento falso, fraudulento o con indicios de estafa, se reserva el derecho de congelar las transferencias, cancelar el evento y dar de baja la cuenta del organizador de inmediato.
+            </Text>
+          </ScrollView>
+          <TouchableOpacity style={styles.modalCloseButton} onPress={() => setMostrarTerminos(false)}>
+            <Text style={styles.modalCloseText}>Cerrar</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -298,5 +372,37 @@ const styles = StyleSheet.create({
     height: 180,
     borderRadius: 12,
     marginBottom: 12,
+  },
+  termsLink: {
+    color: '#00FF87',
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  termsCheckboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 16,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    backgroundColor: '#1C1C24',
+    borderWidth: 2,
+    borderColor: '#2C2C36',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: '#00FF87',
+    borderColor: '#00FF87',
+  },
+  termsCheckboxText: {
+    color: '#A1A1A1',
+    fontSize: 13,
+    lineHeight: 18,
+    flex: 1,
   },
 });
