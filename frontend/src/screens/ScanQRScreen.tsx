@@ -72,6 +72,8 @@ export default function ScanQRScreen({ navigation, route }: any) {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            // La validación exige la sesión del staff, el artista del evento o un admin.
+            Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token ?? ''}`,
           },
           body: JSON.stringify({ 
             codigo_qr: codigoQr,

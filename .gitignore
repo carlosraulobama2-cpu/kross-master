@@ -1,0 +1,19 @@
+# Dependencias y compilados
+node_modules/
+dist/
+build/
+.expo/
+web-build/
+coverage/
+
+# Variables de entorno reales (solo se suben los *.example)
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Sistema y editores
+.DS_Store
+.idea/
+.vscode/
+*.log

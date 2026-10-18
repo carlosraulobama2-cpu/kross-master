@@ -5,7 +5,7 @@ echo === Kroos Master Deploy ===
 
 echo.
 echo 1. Validando variables de entorno...
-cd /d "%~dp0backend"
+cd /d "%~dp0..\backend"
 call npm run check:env
 
 echo.

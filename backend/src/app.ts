@@ -1,74 +1,74 @@
-require('dotenv').config();
-import express from 'express';
 import cors from 'cors';
+import express from 'express';
+import helmet from 'helmet';
 import path from 'path';
+import { env } from './config/env';
+import { errorHandler, notFoundHandler } from './middleware/error-handler';
+import { apiLimiter, authLimiter } from './middleware/rate-limit';
 
-import authRoutes from './routes/auth';
-import eventoRoutes from './routes/eventos';
-import entradaRoutes from './routes/entradas';
-import qrRoutes from './routes/qr';
-import stripeRoutes from './routes/stripe';
-import stripeWebhookRoutes from './routes/stripeWebhook';
-import usuarioRoutes from './routes/usuarios';
-import favoritoRoutes from './routes/favoritos';
-import resenaRoutes from './routes/resenas';
-import notificacionRoutes from './routes/notificaciones';
-import artistaRoutes from './routes/artistas';
-import tramoRoutes from './routes/tramos';
-import reservaRoutes from './routes/reservas';
-import transferenciaRoutes from './routes/transferencias';
-import facturaRoutes from './routes/facturas';
-import analyticsRoutes from './routes/analytics';
-import terminoRoutes from './routes/terminos';
-import staffRoutes from './routes/staff';
-import legalRoutes from './routes/legal';
-import adminRoutes from './routes/admin/adminRoutes';
+import adminRoutes from './modules/admin/admin.routes';
+import analyticsRoutes from './modules/analytics/analytics.routes';
+import artistRoutes from './modules/artists/artists.routes';
+import authRoutes from './modules/auth/auth.routes';
+import checkinRoutes from './modules/checkin/checkin.routes';
+import eventRoutes from './modules/events/events.routes';
+import favoriteRoutes from './modules/favorites/favorites.routes';
+import invoiceRoutes from './modules/invoices/invoices.routes';
+import legalRoutes from './modules/legal/legal.routes';
+import notificationRoutes from './modules/notifications/notifications.routes';
+import paymentRoutes from './modules/payments/payments.routes';
+import stripeWebhookRoutes from './modules/payments/stripe-webhook.routes';
+import reservationRoutes from './modules/reservations/reservations.routes';
+import reviewRoutes from './modules/reviews/reviews.routes';
+import staffRoutes from './modules/staff/staff.routes';
+import termsRoutes from './modules/terms/terms.routes';
+import ticketRoutes from './modules/tickets/tickets.routes';
+import tierRoutes from './modules/tiers/tiers.routes';
+import transferRoutes from './modules/transfers/transfers.routes';
+import userRoutes from './modules/users/users.routes';
 
-const app = express();
+/** Construye la app sin abrir el puerto (así las pruebas la usan directamente). Las rutas públicas no cambian. */
+export function createApp() {
+  const app = express();
+  app.disable('x-powered-by');
+  app.set('trust proxy', 1);
 
-app.use(cors());
-app.use(express.json());
+  // El panel de administración (estático) usa scripts propios; la API solo devuelve JSON.
+  app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
+  app.use(cors({ origin: env.corsOrigins.length ? env.corsOrigins : true }));
 
-const ADMIN_DIR = path.join(__dirname, '../../admin');
-app.use('/admin', express.static(ADMIN_DIR));
+  // Antes de express.json(): Stripe firma el cuerpo en bruto.
+  app.use('/api/stripe/webhook', stripeWebhookRoutes);
+  app.use(express.json({ limit: '1mb' }));
 
-app.get('/admin', (_req, res) => {
-  res.redirect('/admin/login.html');
-});
+  app.get('/health', (_req, res) => res.json({ status: 'ok', service: 'kroos-master-backend' }));
 
-app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', service: 'kroos-master-backend' });
-});
+  const adminDir = path.join(__dirname, '../../admin');
+  app.get('/admin', (_req, res) => res.redirect('/admin/login.html'));
+  app.use('/admin', express.static(adminDir));
 
-app.use('/api/auth', authRoutes);
-app.use('/api/eventos', eventoRoutes);
-app.use('/api/entradas', entradaRoutes);
-app.use('/api/qr', qrRoutes);
-app.use('/api/stripe', stripeRoutes);
-app.use('/api/stripe/webhook', stripeWebhookRoutes);
-app.use('/api/usuarios', usuarioRoutes);
-app.use('/api/favoritos', favoritoRoutes);
-app.use('/api/resenas', resenaRoutes);
-app.use('/api/notificaciones', notificacionRoutes);
-app.use('/api/artistas', artistaRoutes);
-app.use('/api/tramos', tramoRoutes);
-app.use('/api/reservas', reservaRoutes);
-app.use('/api/transferencias', transferenciaRoutes);
-app.use('/api/facturas', facturaRoutes);
-app.use('/api/analytics', analyticsRoutes);
-app.use('/api/terminos', terminoRoutes);
-app.use('/api/staff', staffRoutes);
-app.use('/api/legal', legalRoutes);
-app.use('/api/admin', adminRoutes);
+  app.use('/api', apiLimiter);
+  app.use('/api/auth', authLimiter, authRoutes);
+  app.use('/api/eventos', eventRoutes);
+  app.use('/api/entradas', ticketRoutes);
+  app.use('/api/qr', checkinRoutes);
+  app.use('/api/stripe', paymentRoutes);
+  app.use('/api/usuarios', userRoutes);
+  app.use('/api/favoritos', favoriteRoutes);
+  app.use('/api/resenas', reviewRoutes);
+  app.use('/api/notificaciones', notificationRoutes);
+  app.use('/api/artistas', artistRoutes);
+  app.use('/api/tramos', tierRoutes);
+  app.use('/api/reservas', reservationRoutes);
+  app.use('/api/transferencias', transferRoutes);
+  app.use('/api/facturas', invoiceRoutes);
+  app.use('/api/analytics', analyticsRoutes);
+  app.use('/api/terminos', termsRoutes);
+  app.use('/api/staff', staffRoutes);
+  app.use('/api/legal', legalRoutes);
+  app.use('/api/admin', adminRoutes);
 
-app.use((_req, res) => {
-  res.status(404).json({ mensaje: 'Ruta no encontrada' });
-});
-
-const PORT = process.env.PORT || 3000;
-
-const server = app.listen(PORT, () => {
-  console.log(`Servidor corriendo en puerto ${PORT}`);
-});
-
-export { app, server };
+  app.use(notFoundHandler);
+  app.use(errorHandler);
+  return app;
+}

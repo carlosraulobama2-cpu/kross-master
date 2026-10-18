@@ -4,7 +4,7 @@ import path from 'path';
 
 config({ path: path.resolve(__dirname, '../.env') });
 
-const required = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'STRIPE_SECRET_KEY'];
+const required = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET', 'QR_SIGNING_SECRET', 'CORS_ORIGINS'];
 const missing = required.filter((key) => !process.env[key]);
 
 if (missing.length > 0) {

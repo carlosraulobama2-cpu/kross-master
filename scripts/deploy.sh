@@ -5,7 +5,7 @@ echo "=== Kroos Master Deploy ==="
 
 echo ""
 echo "1. Validando variables de entorno..."
-cd "$(dirname "$0")/backend"
+cd "$(dirname "$0")/../backend"
 npm run check:env
 
 echo ""

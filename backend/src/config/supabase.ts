@@ -1,10 +1,9 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { env } from './env';
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!supabaseUrl || !supabaseServiceRoleKey) {
+if (!env.supabaseUrl || !env.supabaseServiceRoleKey) {
   console.warn('SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY no están configurados en el backend');
 }
 
-export const supabase: SupabaseClient = createClient(supabaseUrl || '', supabaseServiceRoleKey || '');
+/** Cliente con la clave de servicio: salta las políticas RLS, por eso solo se usa en el backend. */
+export const supabase: SupabaseClient = createClient(env.supabaseUrl || 'http://localhost', env.supabaseServiceRoleKey || 'sin-configurar');

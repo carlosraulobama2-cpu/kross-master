@@ -1,53 +1,52 @@
-import { Request, Response, NextFunction } from 'express';
+import { NextFunction, Request, Response } from 'express';
 import { supabase } from '../config/supabase';
 
-interface RequestWithUser extends Request {
-  usuario?: {
-    id: string;
-    email: string;
-    rol: string;
-  };
+export interface AuthUser {
+  id: string;
+  email: string;
+  nombre?: string;
+  rol: string;
 }
 
-async function authMiddleware(req: RequestWithUser, _res: Response, next: NextFunction) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    _res.status(401).json({ mensaje: 'Token no proporcionado' });
+export interface RequestWithUser extends Request {
+  usuario?: AuthUser;
+}
+
+/** Valida el token de sesión de Supabase y carga el usuario con su rol. */
+export async function authMiddleware(req: RequestWithUser, res: Response, next: NextFunction) {
+  const header = req.headers.authorization;
+  if (!header || !header.startsWith('Bearer ')) {
+    res.status(401).json({ mensaje: 'Token no proporcionado' });
     return;
   }
 
-  const token = authHeader.split(' ')[1];
   try {
-    const { data, error } = await supabase.auth.getUser(token);
+    const { data, error } = await supabase.auth.getUser(header.split(' ')[1]);
     if (error || !data.user) {
-      _res.status(401).json({ mensaje: 'Token inválido o expirado' });
+      res.status(401).json({ mensaje: 'Token inválido o expirado' });
       return;
     }
-
-    const { data: usuario } = await supabase
-      .from('usuarios')
-      .select('id, email, nombre, rol')
-      .eq('id', data.user.id)
-      .single();
-
+    const { data: usuario } = await supabase.from('usuarios').select('id, email, nombre, rol').eq('id', data.user.id).single();
     if (!usuario) {
-      _res.status(401).json({ mensaje: 'Usuario no encontrado' });
+      res.status(401).json({ mensaje: 'Usuario no encontrado' });
       return;
     }
-
     req.usuario = usuario;
     next();
-  } catch (error) {
-    _res.status(401).json({ mensaje: 'Token inválido o expirado' });
+  } catch {
+    res.status(401).json({ mensaje: 'Token inválido o expirado' });
   }
 }
 
-function adminOnly(req: RequestWithUser, res: Response, next: NextFunction) {
-  if (req.usuario?.rol !== 'super_admin') {
-    res.status(403).json({ mensaje: 'Acceso denegado. Se requiere rol super_admin.' });
-    return;
-  }
-  next();
-}
+/** Exige uno de los roles indicados (se usa después de authMiddleware). */
+export const requireRole =
+  (...roles: string[]) =>
+  (req: RequestWithUser, res: Response, next: NextFunction) => {
+    if (!req.usuario || !roles.includes(req.usuario.rol)) {
+      res.status(403).json({ mensaje: `Acceso denegado. Se requiere rol ${roles.join(' o ')}.` });
+      return;
+    }
+    next();
+  };
 
-export { authMiddleware, adminOnly };
+export const adminOnly = requireRole('super_admin');

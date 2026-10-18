@@ -5,7 +5,8 @@ services:
     plan: free
     branch: main
     rootDir: backend
-    buildCommand: npm install && npm run build
+    # --include=dev: con NODE_ENV=production npm se salta TypeScript y el build falla.
+    buildCommand: npm ci --include=dev && npm run build
     startCommand: npm start
     healthCheckPath: /health
     envVars:
@@ -13,8 +14,10 @@ services:
         value: production
       - key: PORT
         value: 3000
-      - key: JWT_SECRET
+      - key: QR_SIGNING_SECRET
         generateValue: true
+      - key: CORS_ORIGINS
+        sync: false
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY

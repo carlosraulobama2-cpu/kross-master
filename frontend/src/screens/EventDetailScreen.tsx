@@ -12,7 +12,7 @@ const ASIENTOS = ['A-12', 'A-13', 'B-05', 'B-06', 'C-01'];
 
 export default function EventDetailScreen({ route, navigation }: EventDetailScreenProps) {
   const { item } = route.params || {};
-  const { comprarEntrada, usuario } = useEntradas();
+  const { usuario } = useEntradas();
   const [seat, setSeat] = useState<string>(ASIENTOS[0]);
   const [cargando, setCargando] = useState<boolean>(false);
 

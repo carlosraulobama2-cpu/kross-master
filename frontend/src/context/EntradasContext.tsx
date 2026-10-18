@@ -1,7 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../config/supabase';
-import { buildQrPayload } from '../utils/qrSigner';
 
 const ONBOARDING_KEY = '@kroos_onboarding_completed';
 
@@ -31,7 +30,6 @@ interface EntradasContextType {
   registrar: (email: string, password: string, nombre: string, rol?: string) => Promise<any>;
   login: (email: string, password: string) => Promise<any>;
   logout: () => Promise<void>;
-  comprarEntrada: (evento: any, seat: string) => Promise<any>;
   actualizarPerfil: (datos: any) => Promise<any>;
   agregarFavorito: (eventoId: string) => Promise<any>;
   quitarFavorito: (eventoId: string) => Promise<any>;
@@ -175,37 +173,6 @@ export function EntradasProvider({ children }: { children: React.ReactNode }) {
     if (error) throw error;
     setUsuario(null);
     setEntradas([]);
-  }
-
-  async function comprarEntrada(evento: any, seat: string) {
-    if (!usuario) throw new Error('Usuario no autenticado');
-
-    const ticketId = `TK-${Math.floor(Math.random() * 9000) + 1000}`;
-    const eventId = `EV-2026-${evento.id}`;
-    const codigoQr = buildQrPayload({ ticketId, eventId, seat });
-
-    const { data, error } = await supabase
-      .from('entradas')
-      .insert([{
-        evento_id: evento.id,
-        usuario_id: usuario.id,
-        codigo_qr: codigoQr,
-        asiento: seat,
-        precio_pagado: evento.precio,
-        estado: 'VALIDO',
-      }])
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    await supabase
-      .from('eventos')
-      .update({ entradas_disponibles: (evento.entradas_disponibles || 0) - 1 })
-      .eq('id', evento.id);
-
-    await cargarEntradas(usuario.id);
-    return data;
   }
 
   async function actualizarPerfil(datos: any) {
@@ -729,7 +696,6 @@ export function EntradasProvider({ children }: { children: React.ReactNode }) {
       registrar,
       login,
       logout,
-      comprarEntrada,
       actualizarPerfil,
       agregarFavorito,
       quitarFavorito,
