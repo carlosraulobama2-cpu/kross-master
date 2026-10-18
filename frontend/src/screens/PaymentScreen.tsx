@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, ActivityIndicator, Alert, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { StripeProvider, useStripe } from '@stripe/stripe-react-native';
 import { supabase } from '../config/supabase';
+import { BACKEND_URL, STRIPE_PUBLISHABLE_KEY } from '../config/env';
 
 interface PaymentContentProps {
   evento: any;
@@ -24,7 +25,7 @@ function PaymentContent({ evento, seat, navigation }: PaymentContentProps) {
         return;
       }
 
-      const backendUrl = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+      const backendUrl = BACKEND_URL;
       const response = await fetch(
         `${backendUrl}/api/stripe/crear-intento-pago`,
         {
@@ -33,11 +34,8 @@ function PaymentContent({ evento, seat, navigation }: PaymentContentProps) {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${session.access_token}`,
           },
-          body: JSON.stringify({
-            monto: Number(evento.precio),
-            eventoId: evento.id,
-            usuarioId: session.user.id,
-          }),
+          // El importe lo calcula la API con el precio del evento; el asiento viaja en el pago.
+          body: JSON.stringify({ eventoId: evento.id, asiento: seat }),
         }
       );
 
@@ -107,7 +105,6 @@ function PaymentContent({ evento, seat, navigation }: PaymentContentProps) {
 
 export default function PaymentScreen({ route, navigation }: any) {
   const { evento, seat } = route.params || {};
-  const STRIPE_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || '';
 
   useEffect(() => {
     if (!evento) {

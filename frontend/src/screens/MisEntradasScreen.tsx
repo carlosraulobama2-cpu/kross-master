@@ -3,6 +3,7 @@ import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Image } from 'rea
 import QRCode from 'react-native-qrcode-svg';
 import { Ionicons } from '@expo/vector-icons';
 import { useEntradas } from '../context/EntradasContext';
+import { formatFecha } from '../utils/format';
 
 interface MisEntradasScreenProps {
   navigation: any;
@@ -57,11 +58,11 @@ export default function MisEntradasScreen({ navigation }: MisEntradasScreenProps
             activeOpacity={0.85}
             onPress={() => navigation.navigate('TicketDetail', { entrada })}
           >
-            <Image source={{ uri: entrada.imagen_url || entrada.imagen }} style={styles.cardImage} />
+            <Image source={{ uri: entrada.eventos?.imagen_url || entrada.imagen_url || entrada.imagen }} style={styles.cardImage} />
             <View style={styles.cardOverlay} />
             <View style={styles.cardContent}>
               <Text style={styles.title}>{entrada.eventos?.titulo || entrada.titulo}</Text>
-              <Text style={styles.info}>{entrada.eventos?.fecha_evento || entrada.fecha}</Text>
+              <Text style={styles.info}>{formatFecha(entrada.eventos?.fecha_evento || entrada.fecha)}</Text>
               <Text style={styles.info}>{entrada.eventos?.lugar || entrada.lugar}</Text>
 
               <View style={styles.qrContainer}>

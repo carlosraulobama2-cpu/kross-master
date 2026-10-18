@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useEntradas } from '../context/EntradasContext';
+import { BACKEND_URL } from '../config/env';
 
 interface TermsScreenProps {
   navigation: any;
@@ -114,7 +115,7 @@ export default function TermsScreen({ navigation }: TermsScreenProps) {
 
   async function cargarTerminos() {
     try {
-      const backendUrl = (process.env as any).EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+      const backendUrl = BACKEND_URL;
       const response = await fetch(`${backendUrl}/api/legal/terminos`);
       const data = await response.json();
       if (data.contenido) {

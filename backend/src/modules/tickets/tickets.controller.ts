@@ -8,7 +8,7 @@ async function listarMisEntradas(req: Request, res: Response) {
       .from('entradas')
       .select(`
         *,
-        eventos:titulo, lugar, fecha_evento, imagen_url
+        eventos(titulo, lugar, fecha_evento, imagen_url)
       `)
       .eq('usuario_id', usuarioId)
       .order('creado_en', { ascending: false });

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, Image, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useEntradas } from '../context/EntradasContext';
+import { formatFecha } from '../utils/format';
 
 interface EventDetailScreenProps {
   route: any;
@@ -38,7 +39,7 @@ export default function EventDetailScreen({ route, navigation }: EventDetailScre
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <Image source={{ uri: item.imagen }} style={styles.heroImage} />
+      <Image source={{ uri: item.imagen_url || item.imagen }} style={styles.heroImage} />
 
       <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
         <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
@@ -49,7 +50,7 @@ export default function EventDetailScreen({ route, navigation }: EventDetailScre
 
         <View style={styles.infoRow}>
           <Ionicons name="calendar-outline" size={18} color="#00FF87" />
-          <Text style={styles.infoText}>{item.fecha}</Text>
+          <Text style={styles.infoText}>{formatFecha(item.fecha_evento || item.fecha)}</Text>
         </View>
 
         <View style={styles.infoRow}>
@@ -59,7 +60,7 @@ export default function EventDetailScreen({ route, navigation }: EventDetailScre
 
         <View style={styles.priceRow}>
           <Text style={styles.priceLabel}>Precio desde</Text>
-          <Text style={styles.priceValue}>{item.precio}</Text>
+          <Text style={styles.priceValue}>{Number(item.precio).toFixed(2)} €</Text>
         </View>
 
         <Text style={styles.sectionLabel}>Selecciona tu asiento</Text>

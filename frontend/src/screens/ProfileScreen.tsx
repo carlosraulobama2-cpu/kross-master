@@ -199,6 +199,14 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
       </View>
 
       {usuario && (
+        // «Mis entradas» existía pero ninguna pantalla llevaba a ella.
+        <TouchableOpacity style={styles.staffAccessButton} onPress={() => navigation.navigate('MisEntradas')} testID="profile-my-tickets">
+          <Ionicons name="ticket-outline" size={20} color="#FFFFFF" />
+          <Text style={styles.staffAccessText}>Mis entradas</Text>
+        </TouchableOpacity>
+      )}
+
+      {usuario && (
         <TouchableOpacity style={styles.staffAccessButton} onPress={() => navigation.navigate('AccessCode')}>
           <Ionicons name="scan-outline" size={20} color="#FFFFFF" />
           <Text style={styles.staffAccessText}>Acceso Staff / Validador</Text>

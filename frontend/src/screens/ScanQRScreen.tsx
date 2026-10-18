@@ -4,6 +4,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../config/supabase';
 import * as Haptics from 'expo-haptics';
+import { BACKEND_URL } from '../config/env';
 
 interface ScanQRScreenProps {
   navigation: any;
@@ -65,7 +66,7 @@ export default function ScanQRScreen({ navigation, route }: any) {
 
     try {
       const codigoQr = event.data;
-      const backendUrl = process.env.EXPO_PUBLIC_BACKEND_URL;
+      const backendUrl = BACKEND_URL;
       const response = await fetch(
         `${backendUrl}/api/qr/validar`,
         {

@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../config/supabase';
+import { BACKEND_URL } from '../config/env';
 
 const ONBOARDING_KEY = '@kroos_onboarding_completed';
 
@@ -113,7 +114,7 @@ export function EntradasProvider({ children }: { children: React.ReactNode }) {
         .from('entradas')
         .select(`
           *,
-          eventos:titulo, lugar, fecha_evento, imagen_url
+          eventos(titulo, lugar, fecha_evento, imagen_url)
         `)
         .eq('usuario_id', usuarioId)
         .order('creado_en', { ascending: false });
@@ -179,7 +180,7 @@ export function EntradasProvider({ children }: { children: React.ReactNode }) {
     if (!usuario) throw new Error('Usuario no autenticado');
 
     const token = (await supabase.auth.getSession()).data.session?.access_token;
-    const backendUrl = (process.env as any).EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+    const backendUrl = BACKEND_URL;
 
     const response = await fetch(`${backendUrl}/api/usuarios/perfil`, {
       method: 'PATCH',
@@ -206,7 +207,7 @@ export function EntradasProvider({ children }: { children: React.ReactNode }) {
     if (!usuario) throw new Error('Usuario no autenticado');
 
     const token = (await supabase.auth.getSession()).data.session?.access_token;
-    const backendUrl = (process.env as any).EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+    const backendUrl = BACKEND_URL;
 
     const response = await fetch(`${backendUrl}/api/favoritos/agregar`, {
       method: 'POST',
@@ -229,7 +230,7 @@ export function EntradasProvider({ children }: { children: React.ReactNode }) {
     if (!usuario) throw new Error('Usuario no autenticado');
 
     const token = (await supabase.auth.getSession()).data.session?.access_token;
-    const backendUrl = (process.env as any).EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+    const backendUrl = BACKEND_URL;
 
     const response = await fetch(`${backendUrl}/api/favoritos/quitar`, {
       method: 'POST',
@@ -252,7 +253,7 @@ export function EntradasProvider({ children }: { children: React.ReactNode }) {
     if (!usuario) throw new Error('Usuario no autenticado');
 
     const token = (await supabase.auth.getSession()).data.session?.access_token;
-    const backendUrl = (process.env as any).EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+    const backendUrl = BACKEND_URL;
 
     const response = await fetch(`${backendUrl}/api/favoritos/mis-favoritos`, {
       headers: {
@@ -272,7 +273,7 @@ export function EntradasProvider({ children }: { children: React.ReactNode }) {
     if (!usuario) throw new Error('Usuario no autenticado');
 
     const token = (await supabase.auth.getSession()).data.session?.access_token;
-    const backendUrl = (process.env as any).EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+    const backendUrl = BACKEND_URL;
 
     const response = await fetch(`${backendUrl}/api/resenas`, {
       method: 'POST',
@@ -292,7 +293,7 @@ export function EntradasProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function listarResenas(eventoId: string) {
-    const backendUrl = (process.env as any).EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+    const backendUrl = BACKEND_URL;
 
     const response = await fetch(`${backendUrl}/api/resenas/evento/${eventoId}`);
 
@@ -308,7 +309,7 @@ export function EntradasProvider({ children }: { children: React.ReactNode }) {
     if (!usuario) throw new Error('Usuario no autenticado');
 
     const token = (await supabase.auth.getSession()).data.session?.access_token;
-    const backendUrl = (process.env as any).EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+    const backendUrl = BACKEND_URL;
 
     const response = await fetch(`${backendUrl}/api/notificaciones`, {
       headers: {
@@ -328,7 +329,7 @@ export function EntradasProvider({ children }: { children: React.ReactNode }) {
     if (!usuario) throw new Error('Usuario no autenticado');
 
     const token = (await supabase.auth.getSession()).data.session?.access_token;
-    const backendUrl = (process.env as any).EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+    const backendUrl = BACKEND_URL;
 
     const response = await fetch(`${backendUrl}/api/notificaciones/${id}/leer`, {
       method: 'PATCH',
@@ -347,7 +348,7 @@ export function EntradasProvider({ children }: { children: React.ReactNode }) {
 
   async function crearTramo(eventoId: string, datos: any) {
     const token = (await supabase.auth.getSession()).data.session?.access_token;
-    const backendUrl = (process.env as any).EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+    const backendUrl = BACKEND_URL;
 
     const response = await fetch(`${backendUrl}/api/tramos`, {
       method: 'POST',
@@ -367,7 +368,7 @@ export function EntradasProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function listarTramos(eventoId: string) {
-    const backendUrl = (process.env as any).EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+    const backendUrl = BACKEND_URL;
 
     const response = await fetch(`${backendUrl}/api/tramos/evento/${eventoId}`);
 
@@ -383,7 +384,7 @@ export function EntradasProvider({ children }: { children: React.ReactNode }) {
     if (!usuario) throw new Error('Usuario no autenticado');
 
     const token = (await supabase.auth.getSession()).data.session?.access_token;
-    const backendUrl = (process.env as any).EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+    const backendUrl = BACKEND_URL;
 
     const response = await fetch(`${backendUrl}/api/reservas`, {
       method: 'POST',
@@ -406,7 +407,7 @@ export function EntradasProvider({ children }: { children: React.ReactNode }) {
     if (!usuario) throw new Error('Usuario no autenticado');
 
     const token = (await supabase.auth.getSession()).data.session?.access_token;
-    const backendUrl = (process.env as any).EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+    const backendUrl = BACKEND_URL;
 
     const response = await fetch(`${backendUrl}/api/reservas/${reservaId}`, {
       method: 'DELETE',
@@ -427,7 +428,7 @@ export function EntradasProvider({ children }: { children: React.ReactNode }) {
     if (!usuario) throw new Error('Usuario no autenticado');
 
     const token = (await supabase.auth.getSession()).data.session?.access_token;
-    const backendUrl = (process.env as any).EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+    const backendUrl = BACKEND_URL;
 
     const response = await fetch(`${backendUrl}/api/transferencias`, {
       method: 'POST',
@@ -450,7 +451,7 @@ export function EntradasProvider({ children }: { children: React.ReactNode }) {
     if (!usuario) throw new Error('Usuario no autenticado');
 
     const token = (await supabase.auth.getSession()).data.session?.access_token;
-    const backendUrl = (process.env as any).EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+    const backendUrl = BACKEND_URL;
 
     const response = await fetch(`${backendUrl}/api/transferencias/aceptar`, {
       method: 'POST',
@@ -473,7 +474,7 @@ export function EntradasProvider({ children }: { children: React.ReactNode }) {
     if (!usuario) throw new Error('Usuario no autenticado');
 
     const token = (await supabase.auth.getSession()).data.session?.access_token;
-    const backendUrl = (process.env as any).EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+    const backendUrl = BACKEND_URL;
 
     const response = await fetch(`${backendUrl}/api/facturas`, {
       method: 'POST',
@@ -494,7 +495,7 @@ export function EntradasProvider({ children }: { children: React.ReactNode }) {
 
   async function registrarAcceso(entradaId: string, eventoId: string, tipo = 'entrada') {
     const token = (await supabase.auth.getSession()).data.session?.access_token;
-    const backendUrl = (process.env as any).EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+    const backendUrl = BACKEND_URL;
 
     const response = await fetch(`${backendUrl}/api/analytics/acceso`, {
       method: 'POST',
@@ -515,7 +516,7 @@ export function EntradasProvider({ children }: { children: React.ReactNode }) {
 
   async function obtenerAnalyticsEvento(eventoId: string) {
     const token = (await supabase.auth.getSession()).data.session?.access_token;
-    const backendUrl = (process.env as any).EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+    const backendUrl = BACKEND_URL;
 
     const response = await fetch(`${backendUrl}/api/analytics/evento/${eventoId}`, {
       headers: {
@@ -533,7 +534,7 @@ export function EntradasProvider({ children }: { children: React.ReactNode }) {
 
   async function aceptarTerminos(version: string, tipo = 'terminos') {
     const token = (await supabase.auth.getSession()).data.session?.access_token;
-    const backendUrl = (process.env as any).EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+    const backendUrl = BACKEND_URL;
 
     const response = await fetch(`${backendUrl}/api/terminos/aceptar`, {
       method: 'POST',
@@ -553,7 +554,7 @@ export function EntradasProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function verificarTerminos(version: string, tipo = 'terminos') {
-    const backendUrl = (process.env as any).EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+    const backendUrl = BACKEND_URL;
 
     const response = await fetch(`${backendUrl}/api/terminos/verificar?version=${version}&tipo=${tipo}`);
 
@@ -567,7 +568,7 @@ export function EntradasProvider({ children }: { children: React.ReactNode }) {
 
   async function conectarStripeConnect() {
     const token = (await supabase.auth.getSession()).data.session?.access_token;
-    const backendUrl = (process.env as any).EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+    const backendUrl = BACKEND_URL;
 
     const response = await fetch(`${backendUrl}/api/artistas/stripe-connect/account`, {
       method: 'POST',
@@ -591,7 +592,7 @@ export function EntradasProvider({ children }: { children: React.ReactNode }) {
 
   async function obtenerStripeConnectStatus() {
     const token = (await supabase.auth.getSession()).data.session?.access_token;
-    const backendUrl = (process.env as any).EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+    const backendUrl = BACKEND_URL;
 
     const response = await fetch(`${backendUrl}/api/artistas/stripe-connect/status`, {
       headers: {
@@ -609,7 +610,7 @@ export function EntradasProvider({ children }: { children: React.ReactNode }) {
 
   async function generarCodigoAcceso(eventoId: string, codigo: string, tipo = 'staff', usosMaximos?: number) {
     const token = (await supabase.auth.getSession()).data.session?.access_token;
-    const backendUrl = (process.env as any).EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+    const backendUrl = BACKEND_URL;
 
     const response = await fetch(`${backendUrl}/api/staff/generar`, {
       method: 'POST',
@@ -630,7 +631,7 @@ export function EntradasProvider({ children }: { children: React.ReactNode }) {
 
   async function listarCodigosAcceso(eventoId: string) {
     const token = (await supabase.auth.getSession()).data.session?.access_token;
-    const backendUrl = (process.env as any).EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+    const backendUrl = BACKEND_URL;
 
     const response = await fetch(`${backendUrl}/api/staff/evento/${eventoId}`, {
       headers: {
@@ -647,7 +648,7 @@ export function EntradasProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function validarCodigoAcceso(codigo: string, eventoId: string) {
-    const backendUrl = (process.env as any).EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+    const backendUrl = BACKEND_URL;
 
     const response = await fetch(`${backendUrl}/api/staff/validar`, {
       method: 'POST',
@@ -667,7 +668,7 @@ export function EntradasProvider({ children }: { children: React.ReactNode }) {
 
   async function asignarStaff(eventoId: string, email: string, rolStaff = 'validador') {
     const token = (await supabase.auth.getSession()).data.session?.access_token;
-    const backendUrl = (process.env as any).EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+    const backendUrl = BACKEND_URL;
 
     const response = await fetch(`${backendUrl}/api/staff/asignar-staff`, {
       method: 'POST',

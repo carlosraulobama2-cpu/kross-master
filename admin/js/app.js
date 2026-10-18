@@ -1,3 +1,12 @@
+// La API devuelve nombres de iconos de la app móvil (Ionicons); el panel web los muestra como emoji.
+const KPI_ICONS = {
+    'cash-outline': '💶', 'people-outline': '👥', 'musical-notes-outline': '🎵',
+    'calendar-outline': '📅', 'checkmark-done-outline': '✅', 'close-circle-outline': '❌',
+};
+function kpiIcon(name) {
+    return KPI_ICONS[name] || (/^[\w-]+$/.test(name || '') ? '📊' : name);
+}
+
 (function () {
     'use strict';
 
@@ -156,7 +165,7 @@
         kpis.forEach(kpi => {
             kpisHtml += `
                 <div class="kpi-card">
-                    <div class="kpi-icon">${kpi.icono}</div>
+                    <div class="kpi-icon">${kpiIcon(kpi.icono)}</div>
                     <div class="kpi-title">${kpi.titulo}</div>
                     <div class="kpi-value">${kpi.valor}</div>
                     ${kpi.variacion ? `<div class="kpi-change">${kpi.variacion}</div>` : ''}

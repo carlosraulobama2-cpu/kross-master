@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Image, Share } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { Ionicons } from '@expo/vector-icons';
+import { formatFecha } from '../utils/format';
 
 interface TicketDetailScreenProps {
   route: any;
@@ -81,7 +82,7 @@ export default function TicketDetailScreen({ route, navigation }: TicketDetailSc
       <View style={styles.detailsContainer}>
         <Text style={styles.eventTitle}>{entrada.titulo || entrada.eventos?.titulo}</Text>
         <Text style={styles.eventDetail}>
-          {entrada.fecha || entrada.eventos?.fecha_evento}
+          {formatFecha(entrada.eventos?.fecha_evento || entrada.fecha)}
         </Text>
         <Text style={styles.eventDetail}>
           {entrada.lugar || entrada.eventos?.lugar}

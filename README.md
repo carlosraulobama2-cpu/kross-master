@@ -16,7 +16,7 @@ kross-master/
 ├── admin/         Panel web de administración (estático, lo sirve la API en /admin)
 ├── supabase/      schema.sql (foto completa) + migrations/ + seed.sql
 ├── scripts/       despliegue
-├── docs/          arquitectura y decisiones (docs/adr)
+├── docs/          arquitectura, decisiones (docs/adr) y capturas (docs/capturas)
 └── .github/       CI (tipos, pruebas, build, Docker) y Dependabot
 ```
 
