@@ -210,3 +210,36 @@ App ── GET /api/pedidos/:id (polling) ──▶ "pagado" + entradas
 4. App rediseñada: sistema de diseño, pestañas, explorar, detalle, checkout,
    entradas con QR dinámico, perfil, área de organizador y escáner.
 5. Limpieza: quitar `dist/`, `.env` versionados, Edge Functions duplicadas.
+
+---
+
+## 9. Estado tras la reprogramación (23-10-2026)
+
+### Hecho y verificado
+
+- **Base de datos v2** aplicada y probada en PostgreSQL 16: reservas sin sobreventa,
+  confirmación idempotente, caducidad de reservas, pago tardío, validación en puerta,
+  transferencias que invalidan el QR anterior, reembolsos y permisos (el rol anónimo
+  no puede ejecutar la lógica de negocio ni leer datos privados).
+- **API**: 18 tests unitarios/HTTP en el repo y 29 pruebas de punta a punta contra un
+  entorno local tipo Supabase (PostgREST + Stripe simulado). Cubren registro, roles,
+  creación y publicación de eventos, compra, webhook, QR, staff, transferencias,
+  reembolsos, bloqueo de cuentas, configuración y cancelación con reembolso masivo.
+- **Panel admin** (React + TypeScript) y **app** rediseñada: compilan sin errores en modo
+  estricto y se han revisado con capturas en navegador sobre datos de demostración.
+- El QR que genera la app y el que valida la API son idénticos (comprobado en 200 casos).
+- CI en GitHub Actions: tipos, tests y builds de las tres partes.
+
+### Pendiente
+
+| Tema | Detalle |
+| --- | --- |
+| Probar en dispositivo | El pago (PaymentSheet), la cámara del escáner, el brillo y las push solo se han probado en web. Necesitan una *development build* (`eas build --profile development`). |
+| Stripe real | Configurar claves, webhook y Stripe Connect; probar un cobro y un reembolso reales en modo test. |
+| Migración de datos | El esquema v2 es nuevo: si había datos en el proyecto antiguo, hay que migrarlos o empezar en limpio. |
+| Subida de imágenes | Hoy la imagen del evento es una URL. Falta subida a Supabase Storage desde la app. |
+| Reseñas en la app | La API ya las admite (solo asistentes, tras el evento); falta la pantalla. |
+| Recordatorios | El servicio de push existe; falta el aviso automático 24 h antes del evento. |
+| Facturas | No hay generación de factura/recibo en PDF. |
+| Wallet | Añadir entradas a Apple Wallet / Google Wallet. |
+| Calidad | Tests de interfaz de la app, auditoría de accesibilidad con lector de pantalla, analítica y monitorización de errores (p. ej. Sentry). |
