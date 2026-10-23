@@ -31,6 +31,10 @@ import { EventoFormScreen } from '../screens/organizador/EventoForm';
 import { GestionEventoScreen } from '../screens/organizador/GestionEvento';
 import { OrganizadorScreen } from '../screens/organizador/Organizador';
 import { PuertaScreen } from '../screens/organizador/Puerta';
+import { InvitacionesScreen } from '../screens/organizador/Invitaciones';
+import { TaquillaScreen } from '../screens/organizador/Taquilla';
+import { TramoAvanzadoScreen } from '../screens/organizador/TramoAvanzado';
+import { AyudaScreen } from '../screens/perfil/Ayuda';
 
 const Stack = createNativeStackNavigator<Rutas>();
 const Tabs = createBottomTabNavigator<Pestanas>();
@@ -130,6 +134,10 @@ export function Navegacion() {
         <Stack.Screen name="Puerta" component={PuertaScreen} />
         <Stack.Screen name="Escaner" component={EscanerScreen} options={{ animation: 'fade' }} />
         <Stack.Screen name="Legal" component={LegalScreen} />
+        <Stack.Screen name="Taquilla" component={TaquillaScreen} />
+        <Stack.Screen name="Invitaciones" component={InvitacionesScreen} />
+        <Stack.Screen name="TramoAvanzado" component={TramoAvanzadoScreen} />
+        <Stack.Screen name="Ayuda" component={AyudaScreen} />
         <Stack.Group screenOptions={{ presentation: 'modal', animation: 'slide_from_bottom' }}>
           <Stack.Screen name="Acceso" component={AccesoScreen} />
           <Stack.Screen name="Transferir" component={TransferirScreen} />

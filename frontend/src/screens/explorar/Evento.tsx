@@ -8,14 +8,15 @@ import { Boton, BotonIcono, Fila, Icono, Insignia, Pulsable, Separador, T, type 
 import { ErrorEstado, Esqueleto } from '../../components/estados';
 import { ImagenEvento } from '../../components/evento';
 import { Contador } from '../../components/formulario';
+import { describirButacas, PlanoAsientos, type Butaca } from '../../components/plano';
 import { BarraInferior, Cabecera } from '../../components/pantalla';
-import { api, mensajeDe } from '../../lib/api';
+import { api, ErrorApi, mensajeDe } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { anadirAlCalendario } from '../../lib/calendario';
 import { useConfig, useEvento, useFavorito } from '../../lib/consultas';
 import { cuentaAtras, fechaLarga, hora, plural, precio, precioExacto } from '../../lib/formato';
 import { haptica } from '../../lib/haptica';
-import type { CodigoDescuento, EventoDetalle, Pedido, Tramo } from '../../lib/tipos';
+import type { CodigoDescuento, EventoDetalle, Extra, Pedido, Tramo } from '../../lib/tipos';
 import type { PropsPantalla } from '../../navigation/tipos';
 import { CATEGORIAS, color, espacio, radio, tipo } from '../../theme';
 
@@ -43,6 +44,8 @@ export function EventoScreen({ navigation, route }: PropsPantalla<'Evento'>) {
   const [reventa, setReventa] = useState<{ tramoId: string; cantidad: number } | null>(null);
   const [seguro, setSeguro] = useState(false);
   const [uniendose, setUniendose] = useState(false);
+  const [butacas, setButacas] = useState<Record<string, Butaca[]>>({});
+  const [extrasSel, setExtrasSel] = useState<Record<string, number>>({});
 
   const seleccion = useMemo(
     () => (reventa && reventa.cantidad > 0 ? [[reventa.tramoId, reventa.cantidad] as [string, number]] : Object.entries(cantidades).filter(([, n]) => n > 0)),
@@ -60,7 +63,10 @@ export function EventoScreen({ navigation, route }: PropsPantalla<'Evento'>) {
   const base = subtotal - descuento;
   const gastos = base > 0 && config ? Math.round((base * Number(config.gastos_gestion_porcentaje)) / 100) + config.gastos_gestion_fijo_centimos * nEntradas : 0;
   const costeSeguro = base > 0 && config ? Math.round((base * Number(config.seguro_porcentaje)) / 100) : 0;
-  const totalEstimado = base + gastos + (seguro ? costeSeguro : 0);
+  const extrasElegidos = reventa ? [] : Object.entries(extrasSel).filter(([, n]) => n > 0);
+  const nExtras = extrasElegidos.reduce((a, [, n]) => a + n, 0);
+  const totalExtras = extrasElegidos.reduce((a, [xid, n]) => a + n * (evento?.extras.find((x) => x.id === xid)?.precio_centimos ?? 0), 0);
+  const totalEstimado = base + gastos + (seguro ? costeSeguro : 0) + totalExtras;
   const conCola = Boolean(usuario && evento?.cola_activa);
   const turnoOk = !conCola || Boolean(evento?.cola?.admitido);
 
@@ -89,19 +95,27 @@ export function EventoScreen({ navigation, route }: PropsPantalla<'Evento'>) {
             method: 'POST',
             body: {
               eventoId: id,
-              items: seleccion.map(([tramoId, cantidad]) => ({ tramoId, cantidad })),
+              items: seleccion.map(([tramoId, cantidad]) => ({ tramoId, cantidad, ...(butacas[tramoId]?.length ? { asientos: butacas[tramoId].map((b) => b.id) } : {}) })),
+              extras: extrasElegidos.map(([extraId, cantidad]) => ({ extraId, cantidad })),
               codigo: codigo?.codigo,
               codigoAcceso: acceso,
               seguro,
             },
           });
       setCantidades({});
+      setButacas({});
+      setExtrasSel({});
       setReventa(null);
       haptica.exito();
       if (r.pedido.estado === 'pagado') navigation.navigate('Confirmacion', { pedidoId: r.pedido.id });
       else navigation.navigate('Pago', { pedidoId: r.pedido.id, clientSecret: r.clientSecret });
     } catch (e) {
       avisar(mensajeDe(e), 'error');
+      if (e instanceof ErrorApi && e.codigo === 'ASIENTO_OCUPADO') {
+        setButacas({});
+        setCantidades((c) => Object.fromEntries(Object.entries(c).filter(([tid]) => !tramoDe(tid)?.numerado)));
+        void qc.invalidateQueries({ queryKey: ['asientos', id] });
+      }
       void refetch();
     } finally {
       setComprando(false);
@@ -193,6 +207,7 @@ export function EventoScreen({ navigation, route }: PropsPantalla<'Evento'>) {
                 {categoria && <Insignia texto={categoria.nombre} tono="acento" icono={categoria.icono} />}
                 {cuentaAtras(evento.inicia_en) && <Insignia texto={cuentaAtras(evento.inicia_en)!} />}
                 {evento.edad_minima ? <Insignia texto={`+${evento.edad_minima}`} tono="aviso" /> : null}
+                {evento.fecha_original ? <Insignia texto="Aplazado" tono="aviso" icono="calendar-outline" /> : null}
               </Fila>
               <T v="display" style={{ marginTop: espacio.m }} accessibilityRole="header">
                 {evento.titulo}
@@ -225,6 +240,21 @@ export function EventoScreen({ navigation, route }: PropsPantalla<'Evento'>) {
                     </Pulsable>
                   ))}
                 </ScrollView>
+              )}
+
+              {evento.fecha_original && (
+                <View style={s.aplazado}>
+                  <Icono n="calendar-outline" c={color.aviso} />
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <T v="cuerpoFuerte">Nueva fecha · antes {fechaLarga(evento.fecha_original)}</T>
+                    <T v="nota" c="texto2">
+                      Las entradas siguen valiendo.{' '}
+                      {evento.reembolso_aplazamiento_hasta && new Date(evento.reembolso_aplazamiento_hasta) > new Date()
+                        ? `Si ya tenías entradas y no puedes ir, pide el reembolso desde tu pedido hasta el ${fechaLarga(evento.reembolso_aplazamiento_hasta)}.`
+                        : ''}
+                    </T>
+                  </View>
+                </View>
               )}
 
               {/* Datos clave */}
@@ -288,9 +318,16 @@ export function EventoScreen({ navigation, route }: PropsPantalla<'Evento'>) {
                 {evento.tramos.map((t) => (
                   <FilaTramo
                     key={t.id}
+                    eventoId={id}
                     tramo={t}
                     cantidad={cantidades[t.id] ?? 0}
                     bloqueado={!turnoOk}
+                    butacas={butacas[t.id] ?? []}
+                    onButacas={(b) => {
+                      setReventa(null);
+                      setButacas((x) => ({ ...x, [t.id]: b }));
+                      setCantidades((c) => ({ ...c, [t.id]: b.length }));
+                    }}
                     onCambio={(n) => {
                       haptica.toque();
                       setReventa(null);
@@ -332,6 +369,22 @@ export function EventoScreen({ navigation, route }: PropsPantalla<'Evento'>) {
                         Probar otro
                       </T>
                     </Pulsable>
+                  </View>
+                )}
+                {evento.extras.length > 0 && !reventa && (
+                  <View style={{ gap: espacio.s, marginTop: espacio.s }}>
+                    <T v="cuerpoFuerte">Completa tu plan</T>
+                    {evento.extras.map((x) => (
+                      <FilaExtra
+                        key={x.id}
+                        extra={x}
+                        cantidad={extrasSel[x.id] ?? 0}
+                        onCambio={(n) => {
+                          haptica.toque();
+                          setExtrasSel((e) => ({ ...e, [x.id]: n }));
+                        }}
+                      />
+                    ))}
                   </View>
                 )}
                 {nEntradas > 0 && subtotal > 0 && !reventa && <CodigoPromo eventoId={id} codigo={codigo} onCambio={setCodigo} />}
@@ -411,18 +464,19 @@ export function EventoScreen({ navigation, route }: PropsPantalla<'Evento'>) {
                 {evento.cola?.en_cola ? 'Ver mi turno' : 'Entrar en la cola'}
               </Boton>
             </Fila>
-          ) : nEntradas > 0 ? (
+          ) : nEntradas > 0 || nExtras > 0 ? (
             <Fila gap={espacio.l}>
               <View style={{ flex: 1 }}>
                 <T v="nota" c="texto2">
-                  {plural(nEntradas, 'entrada', 'entradas')}
+                  {nEntradas > 0 ? plural(nEntradas, 'entrada', 'entradas') : ''}
                   {reventa ? ' de reventa' : ''}
+                  {nExtras > 0 ? `${nEntradas > 0 ? ' + ' : ''}${plural(nExtras, 'extra', 'extras')}` : ''}
                   {descuento > 0 ? ` · −${precioExacto(descuento)}` : ''}
                 </T>
-                <T v="subtitulo">{base === 0 ? 'Gratis' : precioExacto(totalEstimado)}</T>
+                <T v="subtitulo">{totalEstimado === 0 ? 'Gratis' : precioExacto(totalEstimado)}</T>
               </View>
               <Boton onPress={() => void comprar()} cargando={comprando} bloque={false} icono="arrow-forward" style={{ minWidth: 160 }}>
-                {base === 0 ? 'Reservar' : 'Continuar'}
+                {totalEstimado === 0 ? 'Reservar' : 'Continuar'}
               </Boton>
             </Fila>
           ) : aLaVenta ? (
@@ -493,13 +547,19 @@ function Dato({ icono, titulo, texto, onPress, accion }: { icono: NombreIcono; t
 }
 
 function FilaTramo({
+  eventoId,
   tramo,
   cantidad,
   onCambio,
   bloqueado,
   cantidadReventa,
   onCambioReventa,
+  butacas,
+  onButacas,
 }: {
+  eventoId: string;
+  butacas: Butaca[];
+  onButacas: (b: Butaca[]) => void;
   tramo: Tramo;
   cantidad: number;
   onCambio: (n: number) => void;
@@ -512,6 +572,7 @@ function FilaTramo({
   const pocas = disponible && tramo.disponibles <= 20;
   const reventa = tramo.reventa_disponibles > 0 && !disponible;
   const elegida = cantidad > 0 || cantidadReventa > 0;
+  const [plano, setPlano] = useState(false);
   return (
     <View style={[s.tramo, elegida && { borderColor: color.acento, backgroundColor: 'rgba(0,255,135,0.05)' }, !disponible && !reventa && { opacity: 0.6 }]}>
       <Fila gap={espacio.m}>
@@ -522,6 +583,7 @@ function FilaTramo({
             </T>
             {tramo.preventa && <Insignia texto="Preventa" tono="info" icono="lock-open" />}
             {tramo.accesible && <Insignia texto="Accesible" tono="info" icono="accessibility" />}
+            {tramo.numerado && <Insignia texto="Numerada" tono="info" icono="grid-outline" />}
           </Fila>
           {tramo.descripcion ? (
             <T v="nota" c="texto2">
@@ -543,14 +605,29 @@ function FilaTramo({
           </Fila>
           <Fila gap={espacio.s} style={{ marginTop: 2 }}>
             {tramo.estado === 'agotado' && <Insignia texto="Agotado" tono="peligro" />}
-            {tramo.estado === 'proximamente' && <Insignia texto="Próximamente" tono="info" />}
+            {tramo.estado === 'proximamente' && <Insignia texto={tramo.abre_al_agotar ? `Abre al agotarse ${tramo.abre_al_agotar}` : 'Próximamente'} tono="info" />}
             {tramo.estado === 'finalizado' && <Insignia texto="Venta cerrada" />}
             {pocas && <Insignia texto={`Quedan ${tramo.disponibles}`} tono="aviso" />}
           </Fila>
         </View>
-        {disponible && !bloqueado && <Contador valor={cantidad} max={max} onCambio={onCambio} />}
+        {disponible && !bloqueado && !tramo.numerado && <Contador valor={cantidad} max={max} onCambio={onCambio} />}
+        {disponible && !bloqueado && tramo.numerado && (
+          <Boton pequeno bloque={false} v={plano ? 'secundario' : 'primario'} icono={plano ? 'chevron-up' : 'grid-outline'} onPress={() => setPlano((v) => !v)}>
+            {plano ? 'Cerrar' : butacas.length ? `${butacas.length} elegidas` : 'Elegir butacas'}
+          </Boton>
+        )}
         {disponible && bloqueado && <Icono n="lock-closed-outline" c={color.texto3} />}
       </Fila>
+      {tramo.numerado && !plano && butacas.length > 0 && (
+        <T v="nota" c="acento" style={{ marginTop: espacio.s, fontWeight: '700' }}>
+          {describirButacas(butacas)}
+        </T>
+      )}
+      {tramo.numerado && plano && disponible && !bloqueado && (
+        <View style={{ marginTop: espacio.l }}>
+          <PlanoAsientos eventoId={eventoId} tramoId={tramo.id} max={max} elegidas={butacas} onCambio={onButacas} />
+        </View>
+      )}
       {reventa && (
         <View style={s.reventa}>
           <Icono n="swap-horizontal" c={color.info} />
@@ -563,6 +640,34 @@ function FilaTramo({
           {!bloqueado && <Contador valor={cantidadReventa} max={Math.min(tramo.reventa_disponibles, 10)} onCambio={onCambioReventa} />}
         </View>
       )}
+    </View>
+  );
+}
+
+const ICONO_EXTRA: Record<Extra['tipo'], NombreIcono> = { parking: 'car-outline', merch: 'shirt-outline', vip: 'star-outline', comida: 'fast-food-outline', otro: 'add-circle-outline' };
+
+/** Extra (parking, merch, VIP…) que se añade a la compra. */
+function FilaExtra({ extra, cantidad, onCambio }: { extra: Extra; cantidad: number; onCambio: (n: number) => void }) {
+  const agotado = extra.disponibles <= 0;
+  return (
+    <View style={[s.tramo, { paddingVertical: espacio.m }, cantidad > 0 && { borderColor: color.acento }, agotado && { opacity: 0.6 }]}>
+      <Fila gap={espacio.m}>
+        <View style={s.datoIcono}>
+          <Icono n={ICONO_EXTRA[extra.tipo]} tam={20} c={color.acento} />
+        </View>
+        <View style={{ flex: 1, gap: 2 }}>
+          <T v="cuerpoFuerte">{extra.nombre}</T>
+          {extra.descripcion ? (
+            <T v="nota" c="texto2" numberOfLines={2}>
+              {extra.descripcion}
+            </T>
+          ) : null}
+          <T v="cuerpoFuerte" c="acento">
+            {precio(extra.precio_centimos)}
+          </T>
+        </View>
+        {agotado ? <Insignia texto="Agotado" tono="peligro" /> : <Contador valor={cantidad} max={Math.min(extra.max_por_pedido, extra.disponibles)} onCambio={onCambio} />}
+      </Fila>
     </View>
   );
 }
@@ -762,5 +867,6 @@ const s = StyleSheet.create({
   turno: { flexDirection: 'row', alignItems: 'center', gap: espacio.m, padding: espacio.l, borderRadius: radio.l, backgroundColor: color.acentoSuave, borderWidth: 1, borderColor: color.acento },
   reventa: { flexDirection: 'row', alignItems: 'center', gap: espacio.m, marginTop: espacio.m, paddingTop: espacio.m, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: color.borde },
   seguro: { flexDirection: 'row', alignItems: 'center', gap: espacio.m, padding: espacio.l, borderRadius: radio.l, borderWidth: 1.5, borderColor: color.borde, backgroundColor: color.superficie },
+  aplazado: { flexDirection: 'row', gap: espacio.m, marginTop: espacio.l, padding: espacio.l, borderRadius: radio.l, backgroundColor: color.avisoSuave, borderWidth: 1, borderColor: color.aviso },
   errorPreventa: { flexDirection: 'row', alignItems: 'center', gap: espacio.m, padding: espacio.m, borderRadius: radio.m, backgroundColor: color.peligroSuave },
 });

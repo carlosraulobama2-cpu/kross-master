@@ -1,13 +1,14 @@
 import Constants from 'expo-constants';
-import { FlatList, Linking, ScrollView, StyleSheet, View } from 'react-native';
+import { FlatList, ScrollView, StyleSheet, View } from 'react-native';
 import { useAviso } from '../../components/aviso';
-import { Boton, Fila, Icono, Insignia, Pulsable, T, type NombreIcono } from '../../components/base';
+import { Boton, Chip, Fila, Icono, Insignia, Pulsable, T, type NombreIcono } from '../../components/base';
+import { IDIOMAS, useT } from '../../lib/i18n';
 import { TarjetaEvento } from '../../components/evento';
 import { Pantalla, TituloSeccion } from '../../components/pantalla';
 import { api, mensajeDe } from '../../lib/api';
 import { confirmar } from '../../lib/confirmar';
 import { useAuth } from '../../lib/auth';
-import { useConfig, useEventosPuerta, useFavoritos, useNotificaciones, useSiguiendo } from '../../lib/consultas';
+import { useEventosPuerta, useFavoritos, useNotificaciones, useSiguiendo } from '../../lib/consultas';
 import type { PropsPestana } from '../../navigation/tipos';
 import { color, espacio, radio } from '../../theme';
 
@@ -47,16 +48,27 @@ export function PerfilScreen({ navigation }: PropsPestana<'Perfil'>) {
   const { data: notificaciones } = useNotificaciones();
   const { data: puerta } = useEventosPuerta();
   const { data: siguiendo } = useSiguiendo();
-  const { data: config } = useConfig();
   const avisar = useAviso();
   const version = Constants.expoConfig?.version ?? '';
+  const { idioma, cambiar: cambiarIdioma } = useT();
 
   const legales = (
     <Grupo>
       <Opcion icono="document-text-outline" texto="Términos y condiciones" onPress={() => navigation.navigate('Legal', { doc: 'terminos' })} />
       <Opcion icono="lock-closed-outline" texto="Privacidad" onPress={() => navigation.navigate('Legal', { doc: 'privacidad' })} />
-      <Opcion icono="help-buoy-outline" texto="Ayuda y soporte" detalle={config?.email_soporte ?? undefined} onPress={() => void Linking.openURL(`mailto:${config?.email_soporte ?? 'soporte@kroosmaster.com'}`)} />
+      <Opcion icono="help-buoy-outline" texto="Centro de ayuda" detalle="Preguntas frecuentes y contacto" onPress={() => navigation.navigate('Ayuda')} />
     </Grupo>
+  );
+
+  const selectorIdioma = (
+    <>
+      <TituloSeccion titulo="Idioma" />
+      <Fila gap={espacio.s} style={{ flexWrap: 'wrap' }}>
+        {IDIOMAS.map((i) => (
+          <Chip key={i.id} texto={i.nombre} activo={idioma === i.id} onPress={() => cambiarIdioma(i.id)} />
+        ))}
+      </Fila>
+    </>
   );
 
   if (!usuario) {
@@ -81,6 +93,7 @@ export function PerfilScreen({ navigation }: PropsPestana<'Perfil'>) {
           </View>
         </View>
         {legales}
+        {selectorIdioma}
       </Pantalla>
     );
   }
@@ -200,6 +213,7 @@ export function PerfilScreen({ navigation }: PropsPestana<'Perfil'>) {
 
       <TituloSeccion titulo="Ayuda" />
       {legales}
+      {selectorIdioma}
 
       <View style={{ marginTop: espacio.xxl, gap: espacio.s }}>
         <Grupo>

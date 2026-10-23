@@ -128,12 +128,15 @@ eventosRouter.get('/:id', optionalAuth, async (req, res) => {
     yo ? db.from('registros_fan').select('estado').eq('evento_id', id).eq('usuario_id', yo.id).maybeSingle() : Promise.resolve({ data: null }),
     yo && evento.cola_activa ? estadoCola(id, yo.id) : Promise.resolve(null),
   ]);
-  const { data: extras } = await db
+  const [{ data: aplazado }, { data: extras }] = await Promise.all([
+    db.from('eventos').select('fecha_original, reembolso_aplazamiento_hasta').eq('id', id).single(),
+    db
     .from('extras')
     .select('id, nombre, descripcion, tipo, precio_centimos, stock_total, stock_vendido, stock_reservado, max_por_pedido')
     .eq('evento_id', id)
     .eq('activo', true)
-    .order('precio_centimos');
+    .order('precio_centimos'),
+  ]);
   // Fases: un tramo abre cuando se agota el anterior.
   const porId = new Map((tramos.data ?? []).map((t) => [t.id, t]));
   const libres = (t: { cantidad_total: number; cantidad_vendida: number; cantidad_reservada: number }) => t.cantidad_total - t.cantidad_vendida - t.cantidad_reservada;
@@ -152,6 +155,8 @@ eventosRouter.get('/:id', optionalAuth, async (req, res) => {
   res.json({
     evento: {
       ...evento,
+      fecha_original: aplazado?.fecha_original ?? null,
+      reembolso_aplazamiento_hasta: aplazado?.reembolso_aplazamiento_hasta ?? null,
       favorito: Boolean(favorito.data),
       en_lista_espera: Boolean(espera.data && !espera.data.avisado_en),
       registro_fan: fan.data?.estado ?? null,

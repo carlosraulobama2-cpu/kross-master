@@ -115,6 +115,48 @@ export interface Tramo {
   accesible: boolean;
   incluye_acompanante: boolean;
   reventa_disponibles: number;
+  /** Con plano de butacas: se elige sitio. */
+  numerado: boolean;
+  /** Fase automática: nombre del tipo que tiene que agotarse antes. */
+  abre_al_agotar: string | null;
+}
+
+export type TipoExtra = 'parking' | 'merch' | 'vip' | 'comida' | 'otro';
+
+export interface Extra {
+  id: string;
+  nombre: string;
+  descripcion: string | null;
+  tipo: TipoExtra;
+  precio_centimos: number;
+  max_por_pedido: number;
+  disponibles: number;
+}
+
+export interface Asiento {
+  id: string;
+  seccion: string;
+  fila: string;
+  orden_fila: number;
+  numero: number;
+  estado: 'libre' | 'ocupado';
+}
+
+export interface Faq {
+  id: string;
+  categoria: string;
+  pregunta: string;
+  respuesta: string;
+}
+
+export interface ConsultaSoporte {
+  id: string;
+  asunto: string;
+  mensaje: string;
+  estado: 'abierta' | 'respondida' | 'cerrada';
+  respuesta: string | null;
+  creado_en: string;
+  respondida_en: string | null;
 }
 
 export interface EventoDetalle extends EventoResumen {
@@ -125,6 +167,9 @@ export interface EventoDetalle extends EventoResumen {
   recinto_info: InfoRecinto | null;
   valoracion: { media: number | null; total: number };
   tramos: Tramo[];
+  extras: Extra[];
+  fecha_original: string | null;
+  reembolso_aplazamiento_hasta: string | null;
 }
 
 export type EstadoPedido = 'pendiente' | 'pagado' | 'expirado' | 'cancelado' | 'reembolsado';
@@ -139,12 +184,25 @@ export interface Pedido {
   total_centimos: number;
   moneda: string;
   es_reventa: boolean;
+  canal: 'app' | 'taquilla' | 'invitacion' | 'reventa';
+  extras_centimos: number;
+  extras: { cantidad: number; precio_unitario_centimos: number; codigo: string; canjeado_en: string | null; extra: { id: string; nombre: string; tipo: TipoExtra } }[];
   recibo_url: string | null;
   reclamacion: { estado: 'pendiente' | 'aprobada' | 'rechazada'; respuesta: string | null; creado_en: string } | null;
   expira_en: string;
   pagado_en: string | null;
   creado_en: string;
-  evento: { id: string; titulo: string; categoria: Categoria; inicia_en: string; recinto: string; ciudad: string; imagen_url: string | null };
+  evento: {
+    id: string;
+    titulo: string;
+    categoria: Categoria;
+    inicia_en: string;
+    recinto: string;
+    ciudad: string;
+    imagen_url: string | null;
+    fecha_original: string | null;
+    reembolso_aplazamiento_hasta: string | null;
+  };
   items: { cantidad: number; precio_unitario_centimos: number; tramo: { id: string; nombre: string } }[];
 }
 
@@ -172,8 +230,11 @@ export interface Entrada {
     ciudad: string;
     imagen_url: string | null;
     estado: string;
+    fecha_original: string | null;
+    reembolso_aplazamiento_hasta: string | null;
   };
   tramo: { id: string; nombre: string; accesible: boolean };
+  asiento: { seccion: string; fila: string; numero: number } | null;
 }
 
 export interface PedidoResumen {
@@ -266,6 +327,15 @@ export interface TramoOrganizador {
   codigo_acceso: string | null;
   accesible: boolean;
   incluye_acompanante: boolean;
+  numerado: boolean;
+  fase_anterior_id: string | null;
+}
+
+export interface ExtraOrganizador extends Omit<Extra, 'disponibles'> {
+  stock_total: number;
+  stock_vendido: number;
+  stock_reservado: number;
+  activo: boolean;
 }
 
 export interface EstadisticasEvento {
@@ -274,6 +344,8 @@ export interface EstadisticasEvento {
   aforo: number;
   ingresos_centimos: number;
   pedidos: number;
+  por_canal?: Record<string, number>;
+  extras_centimos?: number;
   serie: { dia: string; entradas: number; ingresos_centimos: number }[];
 }
 
@@ -286,6 +358,9 @@ export interface EventoGestion extends Omit<EventoOrganizador, 'aforo' | 'vendid
   cola_activa: boolean;
   cola_ritmo: number;
   registro_fan_activo: boolean;
+  cupo_invitaciones: number;
+  fecha_original: string | null;
+  reembolso_aplazamiento_hasta: string | null;
   artistas: { id: string; nombre: string }[];
   recinto_info: Omit<InfoRecinto, 'direccion' | 'ciudad' | 'imagen_url'> | null;
   tramos: TramoOrganizador[];

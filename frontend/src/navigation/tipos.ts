@@ -30,6 +30,10 @@ export type Rutas = {
   GestionEvento: { id: string };
   Puerta: undefined;
   Escaner: { eventoId: string; titulo: string };
+  Taquilla: { eventoId: string };
+  Invitaciones: { eventoId: string };
+  TramoAvanzado: { eventoId: string; tramoId: string };
+  Ayuda: undefined;
   Legal: { doc: 'terminos' | 'privacidad' | 'organizador' };
 };
 

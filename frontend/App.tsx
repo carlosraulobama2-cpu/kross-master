@@ -8,6 +8,7 @@ import { AvisoProvider } from './src/components/aviso';
 import { Icono, T } from './src/components/base';
 import { ErrorApi } from './src/lib/api';
 import { AuthProvider, useAuth } from './src/lib/auth';
+import { IdiomaProvider } from './src/lib/i18n';
 import { useConfig } from './src/lib/consultas';
 import { PasarelaProvider } from './src/lib/pasarela';
 import { registrarPush } from './src/lib/push';
@@ -101,7 +102,8 @@ export default function App() {
           <PasarelaProvider>
             <AvisoProvider>
               <StatusBar style="light" />
-              <Raiz />
+              {/* Al cambiar de idioma se vuelve a montar todo para que fechas y textos cambien a la vez. */}
+              <IdiomaProvider>{(idioma) => <Raiz key={idioma} />}</IdiomaProvider>
             </AvisoProvider>
           </PasarelaProvider>
         </AuthProvider>

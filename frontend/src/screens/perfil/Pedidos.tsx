@@ -12,6 +12,7 @@ import { useState } from 'react';
 import { useAviso } from '../../components/aviso';
 import { Campo } from '../../components/formulario';
 import { api, mensajeDe } from '../../lib/api';
+import { confirmar } from '../../lib/confirmar';
 import type { PropsPantalla } from '../../navigation/tipos';
 import { color, espacio, radio } from '../../theme';
 import * as WebBrowser from 'expo-web-browser';
@@ -111,12 +112,26 @@ export function PedidoScreen({ navigation, route }: PropsPantalla<'Pedido'>) {
                 <T v="cuerpoFuerte">{precioExacto(i.cantidad * i.precio_unitario_centimos)}</T>
               </Fila>
             ))}
+            {p.extras.map((x) => (
+              <Fila key={x.extra.id} style={{ justifyContent: 'space-between' }}>
+                <T c="texto2">
+                  {x.cantidad} × {x.extra.nombre}
+                </T>
+                <T v="cuerpoFuerte">{precioExacto(x.cantidad * x.precio_unitario_centimos)}</T>
+              </Fila>
+            ))}
             {p.descuento_centimos > 0 && (
               <Fila style={{ justifyContent: 'space-between' }}>
                 <T c="acento">Descuento</T>
                 <T v="cuerpoFuerte" c="acento">
                   −{precioExacto(p.descuento_centimos)}
                 </T>
+              </Fila>
+            )}
+            {p.canal === 'invitacion' && (
+              <Fila style={{ justifyContent: 'space-between' }}>
+                <T c="texto2">Origen</T>
+                <Insignia texto="Invitación" tono="info" icono="gift-outline" />
               </Fila>
             )}
             <Fila style={{ justifyContent: 'space-between' }}>
@@ -140,10 +155,75 @@ export function PedidoScreen({ navigation, route }: PropsPantalla<'Pedido'>) {
               </T>
             )}
           </View>
+          {p.extras.length > 0 && p.estado === 'pagado' && (
+            <View style={[s.fila, { flexDirection: 'column', alignItems: 'stretch', gap: espacio.m, marginTop: espacio.l }]}>
+              <T v="cuerpoFuerte">Tus extras</T>
+              <T v="nota" c="texto2">
+                Enseña el código en el punto de recogida o en la entrada del parking.
+              </T>
+              {p.extras.map((x) => (
+                <Fila key={x.extra.id} gap={espacio.m}>
+                  <Icono n={x.extra.tipo === 'parking' ? 'car-outline' : x.extra.tipo === 'merch' ? 'shirt-outline' : 'star-outline'} c={color.acento} />
+                  <T style={{ flex: 1 }}>
+                    {x.cantidad} × {x.extra.nombre}
+                  </T>
+                  {x.canjeado_en ? (
+                    <Insignia texto="Canjeado" />
+                  ) : (
+                    <T v="cabecera" style={{ letterSpacing: 2, fontVariant: ['tabular-nums'] }}>
+                      {x.codigo}
+                    </T>
+                  )}
+                </Fila>
+              ))}
+            </View>
+          )}
+          {p.estado === 'pagado' && p.evento.reembolso_aplazamiento_hasta && new Date(p.evento.reembolso_aplazamiento_hasta) > new Date() && (
+            <ReembolsoAplazamiento pedidoId={p.id} hasta={p.evento.reembolso_aplazamiento_hasta} fechaOriginal={p.evento.fecha_original} />
+          )}
           {p.seguro_centimos > 0 && <Proteccion pedidoId={p.id} reclamacion={p.reclamacion} puede={p.estado === 'pagado' && new Date(p.evento.inicia_en).getTime() > Date.now()} />}
         </>
       )}
     </Pantalla>
+  );
+}
+
+/** Evento aplazado: el comprador puede pedir que le devuelvan el dinero dentro del plazo. */
+function ReembolsoAplazamiento({ pedidoId, hasta, fechaOriginal }: { pedidoId: string; hasta: string; fechaOriginal: string | null }) {
+  const qc = useQueryClient();
+  const avisar = useAviso();
+  const [enviando, setEnviando] = useState(false);
+
+  async function pedir() {
+    const ok = await confirmar('¿Pedir el reembolso?', 'Te devolvemos el importe completo y tus entradas dejan de ser válidas. No se puede deshacer.', 'Pedir reembolso');
+    if (!ok) return;
+    setEnviando(true);
+    try {
+      await api(`/pedidos/${pedidoId}/reembolso-aplazamiento`, { method: 'POST' });
+      avisar('Reembolso en camino. Lo verás en unos días en tu tarjeta', 'exito');
+      await invalidarYo(qc);
+    } catch (e) {
+      avisar(mensajeDe(e), 'error');
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <View style={[s.fila, { flexDirection: 'column', alignItems: 'stretch', gap: espacio.m, marginTop: espacio.l, borderColor: color.aviso }]}>
+      <Fila gap={espacio.m}>
+        <Icono n="calendar-outline" c={color.aviso} />
+        <View style={{ flex: 1 }}>
+          <T v="cuerpoFuerte">El evento se ha aplazado</T>
+          <T v="nota" c="texto2">
+            {fechaOriginal ? `Era el ${fechaLarga(fechaOriginal)}. ` : ''}Tus entradas valen para la nueva fecha. Si no puedes ir, pide el reembolso hasta el {fechaLarga(hasta)}.
+          </T>
+        </View>
+      </Fila>
+      <Boton v="secundario" icono="cash-outline" cargando={enviando} onPress={() => void pedir()}>
+        No puedo ir: pedir reembolso
+      </Boton>
+    </View>
   );
 }
 

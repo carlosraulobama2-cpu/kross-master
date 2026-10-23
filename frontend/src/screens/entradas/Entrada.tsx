@@ -1,3 +1,4 @@
+import { describirButacas } from '../../components/plano';
 import { useFocusEffect } from '@react-navigation/native';
 import * as Brightness from 'expo-brightness';
 import { useKeepAwake } from 'expo-keep-awake';
@@ -85,6 +86,11 @@ function TarjetaQr({ entrada, ancho, onTransferir, onRevender, onRetirar }: { en
           <T v="nota" c="texto2">
             {entrada.tramo.nombre}
           </T>
+          {entrada.asiento && (
+            <T v="cuerpoFuerte" c="acento">
+              {describirButacas([{ id: entrada.id, ...entrada.asiento }])}
+            </T>
+          )}
           {(entrada.es_acompanante || entrada.tramo.accesible) && (
             <View style={{ marginTop: 4 }}>
               <Insignia texto={entrada.es_acompanante ? 'Acompañante' : 'Accesible'} tono="info" icono="accessibility" />
@@ -278,6 +284,11 @@ export function EntradaScreen({ navigation, route }: PropsPantalla<'Entrada'>) {
               <T v="nota" c="texto2">
                 {actual.evento.recinto}, {actual.evento.ciudad}
               </T>
+              {actual.evento.fecha_original && (
+                <T v="nota" c="aviso">
+                  Aplazado · antes {fechaLarga(actual.evento.fecha_original)}
+                </T>
+              )}
             </View>
             <Icono n="chevron-forward" c={color.texto3} />
           </Pulsable>

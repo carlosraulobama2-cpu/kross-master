@@ -52,6 +52,7 @@ export function EventoFormScreen({ navigation, route }: PropsPantalla<'EventoFor
   const [nuevoArtista, setNuevoArtista] = useState('');
   const [puertas, setPuertas] = useState<Date | null>(null);
   const [maxPorUsuario, setMaxPorUsuario] = useState('');
+  const [cupoInvitaciones, setCupoInvitaciones] = useState('');
   const [verInfo, setVerInfo] = useState(false);
   const [info, setInfo] = useState({ como_llegar: '', parking: '', accesibilidad: '', objetos_prohibidos: '' });
   const [errores, setErrores] = useState<Record<string, string>>({});
@@ -70,6 +71,7 @@ export function EventoFormScreen({ navigation, route }: PropsPantalla<'EventoFor
     setArtistas(existente.artistas.map((a) => a.nombre));
     setPuertas(existente.puertas_abren_en ? new Date(existente.puertas_abren_en) : null);
     setMaxPorUsuario(existente.max_por_usuario ? String(existente.max_por_usuario) : '');
+    setCupoInvitaciones(existente.cupo_invitaciones ? String(existente.cupo_invitaciones) : '');
     if (existente.recinto_info) {
       const r = existente.recinto_info;
       setInfo({ como_llegar: r.como_llegar ?? '', parking: r.parking ?? '', accesibilidad: r.accesibilidad ?? '', objetos_prohibidos: r.objetos_prohibidos ?? '' });
@@ -106,6 +108,7 @@ export function EventoFormScreen({ navigation, route }: PropsPantalla<'EventoFor
         if (t.codigo.trim() && !/^[A-Z0-9_-]{3,30}$/.test(t.codigo.trim())) e[`t${i}codigo`] = 'Código';
       });
       if (maxPorUsuario.trim() && !(entero(maxPorUsuario) >= 1 && entero(maxPorUsuario) <= 100)) e.max = 'Entre 1 y 100';
+      if (cupoInvitaciones.trim() && !(entero(cupoInvitaciones) >= 0 && entero(cupoInvitaciones) <= 10000)) e.cupo = 'Entre 0 y 10.000';
     }
     return e;
   }
@@ -128,6 +131,7 @@ export function EventoFormScreen({ navigation, route }: PropsPantalla<'EventoFor
     termina_en: new Date(inicia!.getTime() + duracion * 3_600_000).toISOString(),
     puertas_abren_en: puertas ? puertas.toISOString() : null,
     max_por_usuario: maxPorUsuario.trim() ? entero(maxPorUsuario) : null,
+    cupo_invitaciones: cupoInvitaciones.trim() ? entero(cupoInvitaciones) : 0,
     artistas,
     como_llegar: info.como_llegar.trim() || null,
     parking: info.parking.trim() || null,
@@ -393,6 +397,16 @@ export function EventoFormScreen({ navigation, route }: PropsPantalla<'EventoFor
               keyboardType="number-pad"
               icono="person-outline"
               ayuda="Frena a la reventa: cuenta todas las compras de la misma cuenta"
+            />
+            <Campo
+              etiqueta="Cupo de invitaciones (opcional)"
+              value={cupoInvitaciones}
+              onChangeText={setCupoInvitaciones}
+              error={errores.cupo}
+              keyboardType="number-pad"
+              icono="gift-outline"
+              placeholder="0"
+              ayuda="Entradas gratis para prensa, artistas o patrocinadores"
             />
             <Pulsable onPress={() => setTramos((ts) => [...ts, { nombre: '', precio: '', cantidad: '', max: '6', codigo: '', accesible: false }])} style={s.anadir} escala={0.98}>
               <Icono n="add-circle-outline" c={color.acento} />
