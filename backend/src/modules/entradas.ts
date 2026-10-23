@@ -12,7 +12,7 @@ entradasRouter.use(requireAuth);
 
 const CAMPOS_ENTRADA =
   'id, codigo, estado, usada_en, creado_en, qr_semilla, pedido_id, ' +
-  'evento:eventos(id, titulo, inicia_en, termina_en, recinto, direccion, ciudad, imagen_url, estado), ' +
+  'evento:eventos(id, titulo, categoria, inicia_en, termina_en, recinto, direccion, ciudad, imagen_url, estado), ' +
   'tramo:tramos(id, nombre)';
 
 interface FilaEntrada {

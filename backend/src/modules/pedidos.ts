@@ -98,7 +98,7 @@ async function detallePedido(pedidoId: string, usuarioId: string) {
       .from('pedidos')
       .select(
         'id, estado, subtotal_centimos, gastos_centimos, total_centimos, moneda, expira_en, pagado_en, creado_en, stripe_payment_intent_id, ' +
-          'evento:eventos(id, titulo, inicia_en, recinto, ciudad, imagen_url), ' +
+          'evento:eventos(id, titulo, categoria, inicia_en, recinto, ciudad, imagen_url), ' +
           'items:pedido_items(cantidad, precio_unitario_centimos, tramo:tramos(id, nombre))',
       )
       .eq('id', pedidoId)

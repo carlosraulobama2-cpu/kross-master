@@ -1,87 +1,39 @@
-# Kroos Master - Frontend
+# Kroos Master · App
 
-App Expo para Kroos Master.
-
-## Requisitos
-
-- Node.js >= 18
-- Expo CLI
-- Cuenta en Supabase
-- Cuenta en Stripe
-
-## Instalación
+App de iOS y Android (Expo + React Native + **TypeScript**), rediseñada desde cero.
+Habla solo con la API de `backend/`: no accede a la base de datos directamente.
 
 ```bash
-cd frontend
+cp .env.example .env   # EXPO_PUBLIC_API_URL y EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY
 npm install
+npx expo start         # escanea el QR con Expo Go o abre un simulador
+npm run typecheck
 ```
 
-## Variables de entorno
+El pago usa Stripe PaymentSheet (tarjeta, Apple Pay, Google Pay), que necesita una
+*development build* (`eas build --profile development`), no Expo Go. La versión web
+sirve para previsualizar la interfaz; desde web no se puede pagar.
 
-Crear `frontend/.env`:
+## Qué incluye
 
-```env
-EXPO_PUBLIC_SUPABASE_URL=TU_SUPABASE_URL
-EXPO_PUBLIC_SUPABASE_ANON_KEY=TU_SUPABASE_ANON_KEY
-EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_TU_CLAVE_PUBLICABLE_AQUI
-```
-
-## Ejecutar
-
-```bash
-npx expo start
-```
+| Área | Pantallas |
+| --- | --- |
+| Descubrir | Bienvenida, Explorar (destacados, esta semana, por ciudad), Buscar con filtros, Ficha del evento |
+| Comprar | Selección de entradas por tipo, pago con cuenta atrás de reserva, confirmación |
+| Entradas | Cartera tipo billete, QR dinámico (cambia cada 30 s, sin conexión, brillo al máximo), transferir y aceptar |
+| Perfil | Datos, notificaciones, favoritos, textos legales, baja de cuenta |
+| Organizador | Panel de ventas, asistente para crear eventos, gestión (ventas, tipos de entrada, equipo de puerta, cancelación), conexión con Stripe |
+| Puerta | Escáner con resultado a pantalla completa, código manual, contador de asistentes |
 
 ## Estructura
 
 ```
-frontend/
-├── src/
-│   ├── config/
-│   │   ├── supabase.js
-│   │   └── qrSigner.js
-│   ├── context/
-│   │   └── EntradasContext.js
-│   ├── screens/
-│   │   ├── HomeScreen.js
-│   │   ├── EventDetailScreen.js
-│   │   ├── MisEntradasScreen.js
-│   │   ├── LoginScreen.js
-│   │   ├── RegistroScreen.js
-│   │   └── PaymentScreen.js
-│   └── navigation/
-│       └── AppNavigator.js
-├── .env
-└── package.json
+src/
+├── theme/        Tokens de diseño: colores, tipografía, espacios, radios
+├── components/   Kit de UI (botones con háptica, chips, campos, esqueletos, avisos, tarjetas)
+├── lib/          API (con renovación de sesión), auth, consultas (TanStack Query), QR, pagos
+├── navigation/   Pestañas + pantallas, enlaces profundos (kroosmaster://evento/<id>)
+└── screens/      auth · explorar · compra · entradas · perfil · organizador
 ```
 
-## Pagos con Stripe
-
-La app usa Stripe React Native SDK. El flujo es:
-
-1. Usuario selecciona evento y asiento
-2. Navega a `PaymentScreen`
-3. `PaymentScreen` llama a la Edge Function `create-payment-intent` de Supabase
-4. Stripe devuelve un `client_secret`
-5. App inicializa el Payment Sheet de Stripe
-6. Usuario paga con tarjeta / Apple Pay / Google Pay
-7. Stripe envía un webhook a `stripe-webhook`
-8. App recibe éxito y genera la entrada QR
-
-## QR Code Data
-
-```json
-{
-  "ticket_id": "TK-...",
-  "event_id": "EV-2026-...",
-  "seat": "A-12",
-  "firma": "SIG-XXXXXXXX"
-}
-```
-
-## Notas
-
-- En desarrollo usar claves `pk_test_...` de Stripe
-- En producción cambiar a `pk_live_...`
-- No exponer claves secretas en el frontend
-- El webhook de Stripe debe estar configurado en el dashboard de Stripe
+Los archivos `*.web.tsx` sustituyen a los nativos en web (pagos, selector de fecha).

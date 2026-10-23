@@ -16,9 +16,11 @@
       "bundleIdentifier": "com.kroosmaster.app",
       "infoPlist": {
         "NSCameraUsageDescription": "Kroos Master necesita acceso a la cámara para escanear códigos QR de entradas.",
-        "NSPhotoLibraryUsageDescription": "Kroos Master necesita acceso a tus fotos para seleccionar imágenes de perfil y eventos.",
-        "NSNotificationsUsageDescription": "Kroos Master envía notificaciones sobre tus eventos y entradas."
-      }
+        "NSPhotoLibraryUsageDescription": "Kroos Master necesita acceso a tus fotos para seleccionar imágenes de perfil y eventos."
+      },
+      "associatedDomains": [
+        "applinks:kroosmaster.app"
+      ]
     },
     "android": {
       "adaptiveIcon": {
@@ -29,10 +31,24 @@
       "package": "com.kroosmaster.app",
       "permissions": [
         "android.permission.CAMERA",
-        "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.POST_NOTIFICATIONS",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.POST_NOTIFICATIONS"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "kroosmaster.app",
+              "pathPrefix": "/evento"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
       ]
     },
     "web": {
@@ -40,27 +56,27 @@
     },
     "plugins": [
       "expo-notifications",
+      "expo-secure-store",
       [
         "expo-camera",
         {
-          "cameraPermission": "Kroos Master necesita acceso a la cámara para escanear códigos QR de entradas."
+          "cameraPermission": "Kroos Master usa la cámara para escanear los QR de las entradas en la puerta."
         }
       ],
       [
-        "expo-image-picker",
+        "@stripe/stripe-react-native",
         {
-          "photosPermission": "Kroos Master necesita acceso a tus fotos para seleccionar imágenes de perfil y eventos."
+          "merchantIdentifier": "merchant.com.kroosmaster.app",
+          "enableGooglePay": true
         }
       ]
     ],
     "extra": {
-      "supabaseUrl": "TU_SUPABASE_URL",
-      "supabaseAnonKey": "TU_SUPABASE_ANON_KEY",
-      "backendUrl": "https://kroos-master-backend.onrender.com",
       "eas": {
         "projectId": "0af7e3d9-e96e-4652-b4bf-f5d76b4c2fdf"
       }
     },
-    "owner": "carlosbaxx"
+    "owner": "carlosbaxx",
+    "scheme": "kroosmaster"
   }
 }

@@ -130,7 +130,7 @@ end $$;
 -- Se crean con las mismas funciones que usa la API, y luego se reparten en el tiempo.
 do $$
 declare
-  fans uuid[] := array(select id from public.usuarios where rol = 'fan' order by email);
+  fans uuid[] := array(select id from public.usuarios where rol = 'fan' and email <> 'fan@kroosmaster.dev' order by email);
   tr record;
   pendientes integer;
   lote integer;

@@ -31,7 +31,7 @@ puertaRouter.get('/eventos', async (req, res) => {
 
   let consulta = db
     .from('eventos')
-    .select('id, titulo, inicia_en, recinto, ciudad, imagen_url, organizador_id')
+    .select('id, titulo, categoria, inicia_en, recinto, ciudad, imagen_url, organizador_id')
     .eq('estado', 'publicado')
     .gte('inicia_en', desde)
     .order('inicia_en');
