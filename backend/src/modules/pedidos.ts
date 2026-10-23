@@ -9,6 +9,7 @@ import { db, ok } from '../lib/supabase';
 import { requireAuth, usuarioDe } from '../middleware/auth';
 import { body, params } from '../middleware/validate';
 import { confirmarPagoPedido, type Pedido } from '../services/pagos';
+import { urlRecibo } from './recibos';
 
 export const pedidosRouter = Router();
 pedidosRouter.use(requireAuth);
@@ -20,13 +21,15 @@ const crearSchema = z.object({
     .min(1, 'Elige al menos una entrada')
     .max(10)
     .refine((items) => new Set(items.map((i) => i.tramoId)).size === items.length, 'Tipos de entrada repetidos'),
+  codigo: z.string().trim().toUpperCase().max(30).optional(),
+  codigoAcceso: z.string().trim().toUpperCase().max(30).optional(),
 });
 
 const limiteCompras = rateLimit({ windowMs: 60 * 1000, limit: 10, standardHeaders: 'draft-8', legacyHeaders: false });
 
 pedidosRouter.post('/', limiteCompras, async (req, res) => {
   const yo = usuarioDe(req);
-  const { eventoId, items } = body(req, crearSchema);
+  const { eventoId, items, codigo, codigoAcceso } = body(req, crearSchema);
 
   // Un pedido abierto por evento: si había otro pendiente se libera su stock.
   const abiertos = ok(
@@ -41,6 +44,8 @@ pedidosRouter.post('/', limiteCompras, async (req, res) => {
     p_usuario_id: yo.id,
     p_evento_id: eventoId,
     p_items: items.map((i) => ({ tramo_id: i.tramoId, cantidad: i.cantidad })),
+    p_codigo: codigo || null,
+    p_codigo_acceso: codigoAcceso || null,
   });
   if (error) throw errorDesdeSql(error);
   const pedido = data as Pedido;
@@ -97,7 +102,7 @@ async function detallePedido(pedidoId: string, usuarioId: string) {
     await db
       .from('pedidos')
       .select(
-        'id, estado, subtotal_centimos, gastos_centimos, total_centimos, moneda, expira_en, pagado_en, creado_en, stripe_payment_intent_id, ' +
+        'id, estado, subtotal_centimos, descuento_centimos, gastos_centimos, total_centimos, moneda, expira_en, pagado_en, creado_en, stripe_payment_intent_id, ' +
           'evento:eventos(id, titulo, categoria, inicia_en, recinto, ciudad, imagen_url), ' +
           'items:pedido_items(cantidad, precio_unitario_centimos, tramo:tramos(id, nombre))',
       )
@@ -107,14 +112,15 @@ async function detallePedido(pedidoId: string, usuarioId: string) {
   ) as unknown as (Record<string, unknown> & { estado: string; stripe_payment_intent_id: string | null }) | null;
   if (!pedido) throw noEncontrado('Pedido');
   const { stripe_payment_intent_id: _pi, ...publico } = pedido;
-  return publico;
+  const recibo_url = pedido.estado === 'pagado' || pedido.estado === 'reembolsado' ? urlRecibo(pedidoId) : null;
+  return { ...publico, recibo_url };
 }
 
 pedidosRouter.get('/', async (req, res) => {
   const pedidos = ok(
     await db
       .from('pedidos')
-      .select('id, estado, total_centimos, moneda, creado_en, pagado_en, evento:eventos(id, titulo, inicia_en, imagen_url)')
+      .select('id, estado, total_centimos, moneda, creado_en, pagado_en, evento:eventos(id, titulo, categoria, inicia_en, imagen_url), items:pedido_items(cantidad)')
       .eq('usuario_id', usuarioDe(req).id)
       .neq('estado', 'cancelado')
       .order('creado_en', { ascending: false })

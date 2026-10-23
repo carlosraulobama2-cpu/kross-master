@@ -1,12 +1,12 @@
 import Constants from 'expo-constants';
-import { Alert, FlatList, Linking, Platform, StyleSheet, View } from 'react-native';
+import { Alert, FlatList, Linking, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { useAviso } from '../../components/aviso';
 import { Boton, Fila, Icono, Insignia, Pulsable, T, type NombreIcono } from '../../components/base';
 import { TarjetaEvento } from '../../components/evento';
 import { Pantalla, TituloSeccion } from '../../components/pantalla';
 import { api, mensajeDe } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
-import { useConfig, useEventosPuerta, useFavoritos, useNotificaciones } from '../../lib/consultas';
+import { useConfig, useEventosPuerta, useFavoritos, useNotificaciones, useSiguiendo } from '../../lib/consultas';
 import type { PropsPestana } from '../../navigation/tipos';
 import { color, espacio, radio } from '../../theme';
 
@@ -56,6 +56,7 @@ export function PerfilScreen({ navigation }: PropsPestana<'Perfil'>) {
   const { data: favoritos } = useFavoritos();
   const { data: notificaciones } = useNotificaciones();
   const { data: puerta } = useEventosPuerta();
+  const { data: siguiendo } = useSiguiendo();
   const { data: config } = useConfig();
   const avisar = useAviso();
   const version = Constants.expoConfig?.version ?? '';
@@ -170,8 +171,39 @@ export function PerfilScreen({ navigation }: PropsPestana<'Perfil'>) {
         </>
       )}
 
+      {((siguiendo?.artistas.length ?? 0) > 0 || (siguiendo?.recintos.length ?? 0) > 0) && (
+        <>
+          <TituloSeccion titulo="Siguiendo" />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -espacio.xl }} contentContainerStyle={{ paddingHorizontal: espacio.xl, gap: espacio.s }}>
+            {siguiendo?.artistas.map((a) => (
+              <Pulsable key={a.id} onPress={() => navigation.navigate('Artista', { id: a.id })} style={s.seguido}>
+                <View style={s.seguidoAvatar}>
+                  <T v="cuerpoFuerte" c="acentoTexto">
+                    {a.nombre[0]}
+                  </T>
+                </View>
+                <T v="nota" numberOfLines={1} style={{ fontWeight: '700' }}>
+                  {a.nombre}
+                </T>
+              </Pulsable>
+            ))}
+            {siguiendo?.recintos.map((r) => (
+              <Pulsable key={r.id} onPress={() => navigation.navigate('Recinto', { id: r.id })} style={s.seguido}>
+                <View style={[s.seguidoAvatar, { backgroundColor: color.superficie3 }]}>
+                  <Icono n="business" tam={18} c={color.texto} />
+                </View>
+                <T v="nota" numberOfLines={1} style={{ fontWeight: '700' }}>
+                  {r.nombre}
+                </T>
+              </Pulsable>
+            ))}
+          </ScrollView>
+        </>
+      )}
+
       <TituloSeccion titulo="Cuenta" />
       <Grupo>
+        <Opcion icono="receipt-outline" texto="Mis pedidos" detalle="Compras y recibos" onPress={() => navigation.navigate('Pedidos')} />
         <Opcion icono="notifications-outline" texto="Notificaciones" contador={sinLeer} onPress={() => navigation.navigate('Notificaciones')} />
         <Opcion icono="person-outline" texto="Datos personales" onPress={() => navigation.navigate('EditarPerfil')} />
       </Grupo>
@@ -219,5 +251,7 @@ const s = StyleSheet.create({
   grupo: { borderRadius: radio.l, backgroundColor: color.superficie, borderWidth: 1, borderColor: color.borde, overflow: 'hidden' },
   opcion: { flexDirection: 'row', alignItems: 'center', gap: espacio.m, minHeight: 60, paddingHorizontal: espacio.l, paddingVertical: espacio.s },
   opcionIcono: { width: 36, height: 36, borderRadius: radio.m, backgroundColor: color.superficie2, alignItems: 'center', justifyContent: 'center' },
+  seguido: { width: 84, alignItems: 'center', gap: 6 },
+  seguidoAvatar: { width: 64, height: 64, borderRadius: 32, backgroundColor: color.acento, alignItems: 'center', justifyContent: 'center' },
   contador: { minWidth: 22, height: 22, paddingHorizontal: 6, borderRadius: 11, backgroundColor: color.acento, alignItems: 'center', justifyContent: 'center' },
 });

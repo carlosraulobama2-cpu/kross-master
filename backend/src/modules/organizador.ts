@@ -6,6 +6,8 @@ import { CATEGORIAS, idParam, paginacion, rango, uuid } from '../lib/schemas';
 import { db, ok } from '../lib/supabase';
 import { requireAuth, requireRol, usuarioDe } from '../middleware/auth';
 import { body, params, query } from '../middleware/validate';
+import { fijarArtistas, recintoPara, seguidoresDeEvento } from '../services/catalogo';
+import { notificar } from '../services/notificaciones';
 import { cancelarEvento } from '../services/pagos';
 import type { UsuarioSesion } from '../types';
 
@@ -45,7 +47,16 @@ const tramoSchema = z.object({
   venta_inicia_en: z.coerce.date().nullable().optional(),
   venta_termina_en: z.coerce.date().nullable().optional(),
   orden: z.number().int().min(0).default(0),
+  codigo_acceso: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z0-9_-]{3,30}$/, 'El código de preventa solo admite letras, números, - y _ (3 a 30)')
+    .nullable()
+    .optional(),
 });
+
+const textoInfo = z.string().trim().max(1000).nullable().optional();
 
 const eventoBase = z.object({
   titulo: z.string().trim().min(3, 'El título es muy corto').max(120),
@@ -59,7 +70,44 @@ const eventoBase = z.object({
   termina_en: z.coerce.date().nullable().optional(),
   edad_minima: z.number().int().min(0).max(21).nullable().optional(),
   politica_devolucion: z.string().trim().max(1000).optional(),
+  puertas_abren_en: z.coerce.date().nullable().optional(),
+  max_por_usuario: z.number().int().min(1).max(100).nullable().optional(),
+  artistas: z.array(z.string().trim().min(2).max(80)).max(20).optional(),
+  // Información práctica del recinto (se guarda en el recinto, no en el evento).
+  como_llegar: textoInfo,
+  parking: textoInfo,
+  accesibilidad: textoInfo,
+  objetos_prohibidos: textoInfo,
 });
+
+/** Separa los campos del evento de los del recinto y los artistas. */
+async function prepararEvento(
+  datos: Partial<z.infer<typeof eventoBase>>,
+  usuario: UsuarioSesion,
+  actual?: { recinto: string; ciudad: string; direccion: string | null },
+) {
+  const { artistas, como_llegar, parking, accesibilidad, objetos_prohibidos, inicia_en, termina_en, puertas_abren_en, ...resto } = datos;
+  const fila: Record<string, unknown> = { ...resto };
+  if (inicia_en !== undefined) fila.inicia_en = inicia_en.toISOString();
+  if (termina_en !== undefined) fila.termina_en = termina_en?.toISOString() ?? null;
+  if (puertas_abren_en !== undefined) fila.puertas_abren_en = puertas_abren_en?.toISOString() ?? null;
+
+  const info = { como_llegar, parking, accesibilidad, objetos_prohibidos };
+  const tocaRecinto = datos.recinto !== undefined || datos.ciudad !== undefined || datos.direccion !== undefined || Object.values(info).some((v) => v !== undefined);
+  if (tocaRecinto) {
+    fila.recinto_id = await recintoPara(
+      {
+        nombre: datos.recinto ?? actual?.recinto ?? '',
+        ciudad: datos.ciudad ?? actual?.ciudad ?? '',
+        direccion: datos.direccion !== undefined ? datos.direccion : actual?.direccion,
+        ...info,
+      },
+      usuario.id,
+      usuario.rol === 'admin',
+    );
+  }
+  return { fila, artistas };
+}
 
 const fechasCoherentes = (d: { inicia_en?: Date; termina_en?: Date | null }) =>
   !d.termina_en || !d.inicia_en || d.termina_en > d.inicia_en;
@@ -105,18 +153,9 @@ organizadorRouter.post('/eventos', async (req, res) => {
       .refine(fechasCoherentes, ERROR_FECHAS),
   );
 
-  const evento = ok(
-    await db
-      .from('eventos')
-      .insert({
-        ...datos,
-        organizador_id: yo.id,
-        inicia_en: datos.inicia_en.toISOString(),
-        termina_en: datos.termina_en?.toISOString() ?? null,
-      })
-      .select('id')
-      .single(),
-  );
+  const { fila, artistas } = await prepararEvento(datos, yo);
+  const evento = ok(await db.from('eventos').insert({ ...fila, organizador_id: yo.id }).select('id').single());
+  if (artistas) await fijarArtistas(evento.id, artistas, yo.id);
   const { error } = await db.from('tramos').insert(tramos.map((t, i) => ({ ...fechasTramo(t), orden: t.orden || i, evento_id: evento.id })));
   if (error) {
     await db.from('eventos').delete().eq('id', evento.id);
@@ -128,13 +167,20 @@ organizadorRouter.post('/eventos', async (req, res) => {
 
 async function detalleEvento(id: string) {
   const [evento, stats] = await Promise.all([
-    db.from('eventos').select('*, tramos(*)').eq('id', id).single(),
+    db
+      .from('eventos')
+      .select('*, tramos(*), recinto_info:recintos(id, nombre, como_llegar, parking, accesibilidad, objetos_prohibidos), evento_artistas(orden, artista:artistas(id, nombre))')
+      .eq('id', id)
+      .single(),
     db.rpc('estadisticas_evento', { p_evento_id: id }),
   ]);
   if (evento.error) throw evento.error;
   if (stats.error) throw stats.error;
-  const tramos = ((evento.data.tramos ?? []) as { orden: number }[]).sort((a, b) => a.orden - b.orden);
-  return { ...evento.data, tramos, estadisticas: stats.data };
+  type Relacion = { orden: number; artista: { id: string; nombre: string } };
+  const { evento_artistas, ...resto } = evento.data as Record<string, unknown> & { evento_artistas: Relacion[]; tramos: { orden: number }[] };
+  const tramos = ((resto.tramos ?? []) as { orden: number }[]).sort((a, b) => a.orden - b.orden);
+  const artistas = (evento_artistas ?? []).sort((a: Relacion, b: Relacion) => a.orden - b.orden).map((a: Relacion) => a.artista);
+  return { ...resto, tramos, artistas, estadisticas: stats.data };
 }
 
 organizadorRouter.get('/eventos/:id', async (req, res) => {
@@ -149,17 +195,10 @@ organizadorRouter.patch('/eventos/:id', async (req, res) => {
   const evento = await miEvento(yo, id);
   editable(evento);
   const cambios = body(req, eventoBase.partial().refine(fechasCoherentes, ERROR_FECHAS));
-  ok(
-    await db
-      .from('eventos')
-      .update({
-        ...cambios,
-        inicia_en: cambios.inicia_en?.toISOString(),
-        termina_en: cambios.termina_en === undefined ? undefined : (cambios.termina_en?.toISOString() ?? null),
-        actualizado_en: new Date().toISOString(),
-      })
-      .eq('id', id),
-  );
+  const actual = ok(await db.from('eventos').select('recinto, ciudad, direccion').eq('id', id).single());
+  const { fila, artistas } = await prepararEvento(cambios, yo, actual);
+  ok(await db.from('eventos').update({ ...fila, actualizado_en: new Date().toISOString() }).eq('id', id));
+  if (artistas) await fijarArtistas(id, artistas, yo.id);
   await auditar(yo.id, 'evento.editar', 'evento', id, { campos: Object.keys(cambios) });
   res.json({ evento: await detalleEvento(id) });
 });
@@ -183,6 +222,10 @@ organizadorRouter.post('/eventos/:id/publicar', async (req, res) => {
 
   ok(await db.from('eventos').update({ estado: 'publicado', actualizado_en: new Date().toISOString() }).eq('id', id));
   await auditar(yo.id, 'evento.publicar', 'evento', id);
+  // Aviso a quien sigue a sus artistas o al recinto (sin bloquear la respuesta).
+  void seguidoresDeEvento(id).then((ids) =>
+    notificar(ids, { titulo: 'Nueva fecha a la venta', cuerpo: `${evento.titulo} ya tiene entradas. ¡Que no te lo cuenten!`, tipo: 'novedad', datos: { eventoId: id } }),
+  );
   res.json({ evento: await detalleEvento(id) });
 });
 
@@ -295,5 +338,61 @@ organizadorRouter.delete('/eventos/:id/staff/:usuarioId', async (req, res) => {
   await miEvento(yo, id);
   ok(await db.from('staff_eventos').delete().eq('evento_id', id).eq('usuario_id', usuarioId));
   await auditar(yo.id, 'staff.quitar', 'evento', id, { usuario_id: usuarioId });
+  res.status(204).end();
+});
+
+// --- Códigos promocionales -------------------------------------------
+
+const codigoSchema = z
+  .object({
+    codigo: z.string().trim().toUpperCase().regex(/^[A-Z0-9_-]{3,30}$/, 'Solo letras, números, - y _ (3 a 30)'),
+    descripcion: z.string().trim().max(120).nullable().optional(),
+    tipo: z.enum(['porcentaje', 'fijo']),
+    valor: z.number().int().min(1),
+    usos_max: z.number().int().min(1).nullable().optional(),
+    tramo_ids: z.array(uuid).max(20).nullable().optional(),
+    valido_desde: z.coerce.date().nullable().optional(),
+    valido_hasta: z.coerce.date().nullable().optional(),
+  })
+  .refine((c) => c.tipo !== 'porcentaje' || c.valor <= 100, { message: 'El porcentaje no puede superar el 100 %', path: ['valor'] });
+
+organizadorRouter.get('/eventos/:id/codigos', async (req, res) => {
+  const { id } = params(req, idParam);
+  await miEvento(usuarioDe(req), id);
+  res.json({ codigos: ok(await db.from('codigos_promocionales').select('*').eq('evento_id', id).order('creado_en', { ascending: false })) });
+});
+
+organizadorRouter.post('/eventos/:id/codigos', async (req, res) => {
+  const { id } = params(req, idParam);
+  const yo = usuarioDe(req);
+  editable(await miEvento(yo, id));
+  const c = body(req, codigoSchema);
+  const { data, error } = await db
+    .from('codigos_promocionales')
+    .insert({ ...c, evento_id: id, valido_desde: c.valido_desde?.toISOString() ?? null, valido_hasta: c.valido_hasta?.toISOString() ?? null })
+    .select()
+    .single();
+  if (error?.code === '23505') throw new AppError(409, 'CODIGO_DUPLICADO', 'Ya existe un código con ese nombre en este evento');
+  if (error) throw error;
+  await auditar(yo.id, 'codigo.crear', 'evento', id, { codigo: c.codigo, tipo: c.tipo, valor: c.valor });
+  res.status(201).json({ codigo: data });
+});
+
+organizadorRouter.patch('/eventos/:id/codigos/:codigoId', async (req, res) => {
+  const { id, codigoId } = params(req, z.object({ id: uuid, codigoId: uuid }));
+  await miEvento(usuarioDe(req), id);
+  const { activo } = body(req, z.object({ activo: z.boolean() }));
+  const codigo = ok(await db.from('codigos_promocionales').update({ activo }).eq('id', codigoId).eq('evento_id', id).select().maybeSingle());
+  if (!codigo) throw noEncontrado('Código');
+  res.json({ codigo });
+});
+
+organizadorRouter.delete('/eventos/:id/codigos/:codigoId', async (req, res) => {
+  const { id, codigoId } = params(req, z.object({ id: uuid, codigoId: uuid }));
+  await miEvento(usuarioDe(req), id);
+  const { data: usado } = await db.from('pedidos').select('id').eq('codigo_promocional_id', codigoId).limit(1).maybeSingle();
+  // Si ya se usó, se desactiva para conservar el histórico de pedidos.
+  if (usado) ok(await db.from('codigos_promocionales').update({ activo: false }).eq('id', codigoId));
+  else ok(await db.from('codigos_promocionales').delete().eq('id', codigoId).eq('evento_id', id));
   res.status(204).end();
 });

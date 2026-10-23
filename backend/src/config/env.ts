@@ -13,6 +13,12 @@ const schema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   STRIPE_SECRET_KEY: z.string().min(1),
   STRIPE_WEBHOOK_SECRET: z.string().min(1),
+  /** URL pública de esta API (para enlaces absolutos, p. ej. recibos). */
+  PUBLIC_API_URL: z
+    .string()
+    .url()
+    .optional()
+    .transform((v) => v?.replace(/\/$/, '')),
   /** Solo desarrollo: apunta a stripe-mock (p. ej. http://localhost:12111). */
   STRIPE_API_URL: z.string().url().optional(),
 });

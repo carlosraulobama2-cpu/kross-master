@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Boton, Icono, T } from '../../components/base';
+import { anadirAlCalendario } from '../../lib/calendario';
 import { invalidarYo, usePedido } from '../../lib/consultas';
 import { fechaLarga, hora, plural } from '../../lib/formato';
 import { haptica } from '../../lib/haptica';
@@ -74,6 +75,11 @@ export function ConfirmacionScreen({ navigation, route }: PropsPantalla<'Confirm
         >
           Ver mis entradas
         </Boton>
+        {pagado && (
+          <Boton v="secundario" icono="calendar-outline" onPress={() => void anadirAlCalendario(pedido.evento.id)}>
+            Añadir al calendario
+          </Boton>
+        )}
         <Boton v="fantasma" onPress={() => navigation.reset({ index: 0, routes: [{ name: 'Pestanas' }] })}>
           Seguir explorando
         </Boton>

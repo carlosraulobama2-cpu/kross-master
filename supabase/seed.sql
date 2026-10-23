@@ -126,6 +126,66 @@ begin
   end loop;
 end $$;
 
+-- ---------- Recintos, artistas y extras de compra ----------
+insert into public.recintos (nombre, direccion, ciudad, creado_por)
+select distinct on (lower(recinto), lower(ciudad)) recinto, direccion, ciudad, organizador_id
+  from public.eventos order by lower(recinto), lower(ciudad), creado_en;
+
+update public.eventos e set recinto_id = r.id, puertas_abren_en = e.inicia_en - interval '1 hour'
+  from public.recintos r where lower(r.nombre) = lower(e.recinto) and lower(r.ciudad) = lower(e.ciudad);
+
+update public.recintos set
+  aforo = 350,
+  como_llegar = 'A 5 minutos andando de Plaza de Armas. Metro: Puerta Jerez. Bus: C3, C4.',
+  parking = 'Parking público Plaza de Armas (24 h) a 300 m.',
+  accesibilidad = 'Acceso sin escalones, zona reservada para sillas de ruedas y aseo adaptado.',
+  objetos_prohibidos = 'Botellas de cristal, latas, paraguas largos y cámaras profesionales.'
+ where nombre = 'Sala Malandar';
+
+update public.recintos set
+  como_llegar = 'Lanzaderas gratuitas desde la estación de autobuses cada 20 minutos.',
+  parking = 'Parking del recinto: 10 € por día (incluido en el abono VIP).',
+  accesibilidad = 'Plataforma elevada para personas con movilidad reducida junto a la mesa de sonido.',
+  objetos_prohibidos = 'Comida y bebida del exterior, sillas plegables y drones.'
+ where nombre = 'Recinto Ferial';
+
+insert into public.artistas (nombre, bio, generos) values
+  ('Luna Brava', 'Cuarteto sevillano de pop luminoso. Su segundo disco, «Mar de fondo», ha sido el más escuchado del año.', '{pop,indie}'),
+  ('Los Faroles', 'Guitarras, prisas y estribillos para corear desde la primera escucha.', '{indie,rock}'),
+  ('Marea Baja', 'Dúo de dream pop nacido en Cádiz.', '{indie}'),
+  ('DJ Olivo', 'Techno con raíces andaluzas. Residente de las mejores naves del sur.', '{techno,electrónica}'),
+  ('Kora', 'Productora y DJ de house melódico.', '{house,electrónica}'),
+  ('Nieve Roja', 'Electropop con letras afiladas.', '{pop,electrónica}'),
+  ('Orquesta Sinfónica del Sur', 'Formación sinfónica especializada en bandas sonoras.', '{clásica}'),
+  ('Rocío Valle', 'Cantaora de la nueva generación del flamenco.', '{flamenco}'),
+  ('Trío Malandar', 'El trío de jazz residente de la sala.', '{jazz}'),
+  ('Paco Salas', 'Monologuista. Humor del día a día.', '{comedia}'),
+  ('Irene Mar', 'Cómica e improvisadora.', '{comedia}');
+
+insert into public.evento_artistas (evento_id, artista_id, orden)
+select e.id, a.id, x.orden
+  from (values
+    ('Luna Brava%', 'Luna Brava', 0),
+    ('Noche Indie%', 'Los Faroles', 0), ('Noche Indie%', 'Marea Baja', 1),
+    ('Festival Sierra%', 'Luna Brava', 0), ('Festival Sierra%', 'Nieve Roja', 1), ('Festival Sierra%', 'Los Faroles', 2), ('Festival Sierra%', 'DJ Olivo', 3),
+    ('Warehouse%', 'DJ Olivo', 0), ('Warehouse%', 'Kora', 1),
+    ('Atardecer%', 'Orquesta Sinfónica del Sur', 0),
+    ('Flamenco%', 'Rocío Valle', 0),
+    ('Costa Neón%', 'Nieve Roja', 0), ('Costa Neón%', 'Kora', 1), ('Costa Neón%', 'Luna Brava', 2),
+    ('Jam Session%', 'Trío Malandar', 0),
+    ('Monólogos%', 'Paco Salas', 0), ('Monólogos%', 'Irene Mar', 1)
+  ) as x(titulo, artista, orden)
+  join public.eventos e on e.titulo like x.titulo
+  join public.artistas a on a.nombre = x.artista;
+
+-- Preventa del Costa Neón con código y límite de 4 entradas por persona.
+insert into public.tramos (evento_id, nombre, descripcion, precio_centimos, cantidad_total, max_por_pedido, orden, codigo_acceso)
+select id, 'Preventa Fan Club', 'Abono 2 días a precio especial para el club de fans', 5900, 300, 4, -1, 'FANCLUB'
+  from public.eventos where titulo = 'Costa Neón Festival';
+
+insert into public.codigos_promocionales (evento_id, codigo, descripcion, tipo, valor, usos_max)
+select id, 'OTONO10', '10 % de descuento de otoño', 'porcentaje', 10, 200 from public.eventos where titulo like 'Luna Brava%';
+
 -- ---------- Ventas de los últimos 30 días ----------
 -- Se crean con las mismas funciones que usa la API, y luego se reparten en el tiempo.
 do $$
@@ -147,7 +207,8 @@ begin
     while pendientes > 0 loop
       lote := least(pendientes, tr.max_por_pedido, 1 + (random() * 3)::integer);
       ped := public.reservar_pedido(fans[1 + (n % array_length(fans, 1))], tr.evento_id,
-                                    jsonb_build_array(jsonb_build_object('tramo_id', tr.id, 'cantidad', lote)));
+                                    jsonb_build_array(jsonb_build_object('tramo_id', tr.id, 'cantidad', lote)),
+                                    null, tr.codigo_acceso);
       perform public.confirmar_pedido(ped.id, case when ped.total_centimos > 0 then 'pi_demo_' || replace(ped.id::text, '-', '') end);
       update public.pedidos
          set creado_en = now() - (random() * interval '30 days') * power(random(), 0.6),
@@ -161,6 +222,9 @@ begin
   update public.pedidos set pagado_en = creado_en + interval '2 minutes' where estado = 'pagado' and pagado_en is null;
   update public.entradas e set creado_en = p.pagado_en from public.pedidos p where p.id = e.pedido_id;
 end $$;
+
+-- Límite por persona (se fija después de generar las ventas de demo).
+update public.eventos set max_por_usuario = 4 where titulo = 'Costa Neón Festival';
 
 -- El fan de demo tiene entradas para ver la app con contenido.
 do $$
@@ -180,6 +244,9 @@ begin
 
   insert into public.favoritos (usuario_id, evento_id)
   select fan, id from public.eventos where titulo in ('Warehouse: 12 horas de techno', 'Costa Neón Festival');
+
+  insert into public.seguimientos (usuario_id, artista_id) select fan, id from public.artistas where nombre in ('Luna Brava', 'DJ Olivo');
+  insert into public.seguimientos (usuario_id, recinto_id) select fan, id from public.recintos where nombre = 'Sala Malandar';
 
   insert into public.staff_eventos (evento_id, usuario_id)
   select id, fan from public.eventos where titulo = 'Monólogos en el Mercado';

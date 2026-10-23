@@ -121,6 +121,14 @@ export function PagoScreen({ navigation, route }: PropsPantalla<'Pago'>) {
                 <T v="cuerpoFuerte">{precioExacto(i.cantidad * i.precio_unitario_centimos)}</T>
               </Fila>
             ))}
+            {pedido.descuento_centimos > 0 && (
+              <Fila style={{ justifyContent: 'space-between' }}>
+                <T c="acento">Descuento</T>
+                <T v="cuerpoFuerte" c="acento">
+                  −{precioExacto(pedido.descuento_centimos)}
+                </T>
+              </Fila>
+            )}
             <Fila style={{ justifyContent: 'space-between' }}>
               <T c="texto2">Gastos de gestión</T>
               <T v="cuerpoFuerte">{precioExacto(pedido.gastos_centimos)}</T>

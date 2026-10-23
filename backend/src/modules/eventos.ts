@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { AppError, noEncontrado } from '../lib/errors';
+import { generarIcs } from '../lib/ics';
 import { CATEGORIAS, idParam, paginacion, rango } from '../lib/schemas';
 import { db, ok } from '../lib/supabase';
 import { optionalAuth, requireAuth, usuarioDe } from '../middleware/auth';
@@ -70,46 +71,96 @@ function estadoTramo(t: { cantidad_total: number; cantidad_vendida: number; cant
   return 'a_la_venta';
 }
 
+/** Gastos de gestión de una entrada suelta, para mostrar el precio final desde el principio. */
+export async function calculadoraGastos(): Promise<(precio: number) => number> {
+  const cfg = ok(await db.from('configuracion').select('gastos_gestion_porcentaje, gastos_gestion_fijo_centimos').eq('id', 1).single());
+  return (precio) => (precio <= 0 ? 0 : Math.round((precio * Number(cfg.gastos_gestion_porcentaje)) / 100) + cfg.gastos_gestion_fijo_centimos);
+}
+
 eventosRouter.get('/:id', optionalAuth, async (req, res) => {
   const { id } = params(req, idParam);
+  const { acceso } = query(req, z.object({ acceso: z.string().trim().toUpperCase().max(30).optional() }));
   const evento = ok(await db.from('catalogo_eventos').select('*').eq('id', id).maybeSingle());
   if (!evento) throw noEncontrado('Evento');
 
-  const [tramos, resenas, favorito] = await Promise.all([
+  const yo = req.usuario;
+  const [tramos, resenas, favorito, espera, recinto, gastos] = await Promise.all([
     db
       .from('tramos')
-      .select('id, nombre, descripcion, precio_centimos, cantidad_total, cantidad_vendida, cantidad_reservada, max_por_pedido, venta_inicia_en, venta_termina_en, orden')
+      .select('id, nombre, descripcion, precio_centimos, cantidad_total, cantidad_vendida, cantidad_reservada, max_por_pedido, venta_inicia_en, venta_termina_en, orden, codigo_acceso')
       .eq('evento_id', id)
       .eq('activo', true)
       .order('orden')
       .order('precio_centimos'),
     db.from('resenas').select('puntuacion').eq('evento_id', id),
-    req.usuario
-      ? db.from('favoritos').select('evento_id').eq('evento_id', id).eq('usuario_id', req.usuario.id).maybeSingle()
+    yo ? db.from('favoritos').select('evento_id').eq('evento_id', id).eq('usuario_id', yo.id).maybeSingle() : Promise.resolve({ data: null }),
+    yo ? db.from('lista_espera').select('avisado_en').eq('evento_id', id).eq('usuario_id', yo.id).maybeSingle() : Promise.resolve({ data: null }),
+    evento.recinto_id
+      ? db.from('recintos').select('id, nombre, direccion, ciudad, imagen_url, como_llegar, parking, accesibilidad, objetos_prohibidos').eq('id', evento.recinto_id).maybeSingle()
       : Promise.resolve({ data: null }),
+    calculadoraGastos(),
   ]);
+
+  // Los tramos de preventa solo aparecen con su código.
+  const visibles = (tramos.data ?? []).filter((t) => !t.codigo_acceso || t.codigo_acceso === acceso);
+  if (acceso && !visibles.some((t) => t.codigo_acceso === acceso)) {
+    throw new AppError(404, 'PREVENTA_CODIGO', 'Ese código de preventa no es válido para este evento');
+  }
 
   const puntuaciones = (resenas.data ?? []).map((r) => r.puntuacion as number);
   res.json({
     evento: {
       ...evento,
       favorito: Boolean(favorito.data),
+      en_lista_espera: Boolean(espera.data && !espera.data.avisado_en),
+      recinto_info: recinto.data,
       valoracion: {
         media: puntuaciones.length ? puntuaciones.reduce((a, b) => a + b, 0) / puntuaciones.length : null,
         total: puntuaciones.length,
       },
-      tramos: (tramos.data ?? []).map((t) => ({
+      tramos: visibles.map((t) => ({
         id: t.id,
         nombre: t.nombre,
         descripcion: t.descripcion,
         precio_centimos: t.precio_centimos,
+        gastos_centimos: gastos(t.precio_centimos),
+        precio_total_centimos: t.precio_centimos + gastos(t.precio_centimos),
         max_por_pedido: t.max_por_pedido,
         disponibles: Math.max(t.cantidad_total - t.cantidad_vendida - t.cantidad_reservada, 0),
         venta_inicia_en: t.venta_inicia_en,
         estado: estadoTramo(t),
+        preventa: Boolean(t.codigo_acceso),
       })),
     },
   });
+});
+
+/** Archivo .ics para añadir el evento al calendario. */
+eventosRouter.get('/:id/calendario.ics', async (req, res) => {
+  const { id } = params(req, idParam);
+  const e = ok(await db.from('catalogo_eventos').select('id, titulo, descripcion, inicia_en, termina_en, recinto, direccion, ciudad').eq('id', id).maybeSingle());
+  if (!e) throw noEncontrado('Evento');
+  res
+    .type('text/calendar; charset=utf-8')
+    .set('Content-Disposition', `attachment; filename="kroos-${id.slice(0, 8)}.ics"`)
+    .send(generarIcs(e));
+});
+
+/** Comprueba un código de descuento antes de comprar (no lo consume). */
+eventosRouter.get('/:id/codigos/:codigo', async (req, res) => {
+  const { id, codigo } = params(req, z.object({ id: z.string().uuid(), codigo: z.string().trim().toUpperCase().max(30) }));
+  const ahora = new Date().toISOString();
+  const { data: c } = await db
+    .from('codigos_promocionales')
+    .select('codigo, descripcion, tipo, valor, usos, usos_max, tramo_ids, valido_desde, valido_hasta')
+    .eq('evento_id', id)
+    .eq('codigo', codigo)
+    .eq('activo', true)
+    .maybeSingle();
+  const vigente =
+    c && (!c.valido_desde || c.valido_desde <= ahora) && (!c.valido_hasta || c.valido_hasta > ahora) && (c.usos_max === null || c.usos < c.usos_max);
+  if (!c || !vigente) throw new AppError(404, 'CODIGO_INVALIDO', 'El código de descuento no es válido o ya se ha agotado');
+  res.json({ codigo: { codigo: c.codigo, descripcion: c.descripcion, tipo: c.tipo, valor: c.valor, tramo_ids: c.tramo_ids } });
 });
 
 eventosRouter.put('/:id/favorito', requireAuth, async (req, res) => {
@@ -121,6 +172,21 @@ eventosRouter.put('/:id/favorito', requireAuth, async (req, res) => {
 eventosRouter.delete('/:id/favorito', requireAuth, async (req, res) => {
   const { id } = params(req, idParam);
   ok(await db.from('favoritos').delete().eq('usuario_id', usuarioDe(req).id).eq('evento_id', id));
+  res.status(204).end();
+});
+
+/** Lista de espera: avisamos cuando se liberen entradas. */
+eventosRouter.put('/:id/lista-espera', requireAuth, async (req, res) => {
+  const { id } = params(req, idParam);
+  const e = ok(await db.from('catalogo_eventos').select('id').eq('id', id).maybeSingle());
+  if (!e) throw noEncontrado('Evento');
+  ok(await db.from('lista_espera').upsert({ usuario_id: usuarioDe(req).id, evento_id: id, avisado_en: null, creado_en: new Date().toISOString() }));
+  res.status(204).end();
+});
+
+eventosRouter.delete('/:id/lista-espera', requireAuth, async (req, res) => {
+  const { id } = params(req, idParam);
+  ok(await db.from('lista_espera').delete().eq('usuario_id', usuarioDe(req).id).eq('evento_id', id));
   res.status(204).end();
 });
 

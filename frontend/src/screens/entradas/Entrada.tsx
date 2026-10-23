@@ -8,6 +8,7 @@ import { Boton, Fila, Icono, Pulsable, T } from '../../components/base';
 import { ErrorEstado, Esqueleto } from '../../components/estados';
 import { ImagenEvento } from '../../components/evento';
 import { Cabecera } from '../../components/pantalla';
+import { anadirAlCalendario } from '../../lib/calendario';
 import { useEntradas } from '../../lib/consultas';
 import { fechaLarga, hora } from '../../lib/formato';
 import { PERIODO_QR, segundosParaRotar, tokenQr } from '../../lib/qr';
@@ -214,6 +215,14 @@ export function EntradaScreen({ navigation, route }: PropsPantalla<'Entrada'>) {
             </View>
             <Icono n="chevron-forward" c={color.texto3} />
           </Pulsable>
+          <Fila gap={espacio.s} style={{ justifyContent: 'center' }}>
+            <Boton v="fantasma" pequeno bloque={false} icono="calendar-outline" onPress={() => void anadirAlCalendario(actual.evento.id)}>
+              Añadir al calendario
+            </Boton>
+            <Boton v="fantasma" pequeno bloque={false} icono="information-circle-outline" onPress={() => navigation.navigate('Evento', { id: actual.evento.id })}>
+              Info del evento
+            </Boton>
+          </Fila>
         </>
       )}
     </View>

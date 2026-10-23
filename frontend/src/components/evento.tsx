@@ -75,7 +75,7 @@ export function TarjetaDestacada({ evento, onPress, ancho }: { evento: EventoRes
           </Fila>
           <View style={s.precioPastilla}>
             <T v="nota" c="acentoTexto" style={{ fontWeight: '800' }}>
-              {evento.precio_desde_centimos ? `Desde ${precio(evento.precio_desde_centimos)}` : 'Gratis'}
+              {evento.precio_desde_total_centimos ? `Desde ${precio(evento.precio_desde_total_centimos)}` : 'Gratis'}
             </T>
           </View>
         </Fila>
@@ -106,7 +106,7 @@ export function FilaEvento({ evento, onPress }: { evento: EventoResumen; onPress
         </T>
         <Fila style={{ marginTop: 4, justifyContent: 'space-between' }}>
           <T v="nota" style={{ fontWeight: '800' }}>
-            {evento.precio_desde_centimos ? `Desde ${precio(evento.precio_desde_centimos)}` : 'Gratis'}
+            {evento.precio_desde_total_centimos ? `Desde ${precio(evento.precio_desde_total_centimos)}` : 'Gratis'}
           </T>
           {etiquetaDisponibilidad(evento)}
         </Fila>
@@ -129,7 +129,7 @@ export function TarjetaEvento({ evento, onPress, ancho = 220 }: { evento: Evento
         {evento.titulo}
       </T>
       <T v="nota" c="texto2" numberOfLines={1} style={{ marginTop: -6 }}>
-        {evento.ciudad} · {evento.precio_desde_centimos ? `desde ${precio(evento.precio_desde_centimos)}` : 'gratis'}
+        {evento.ciudad} · {evento.precio_desde_total_centimos ? `desde ${precio(evento.precio_desde_total_centimos)}` : 'gratis'}
       </T>
     </Pulsable>
   );

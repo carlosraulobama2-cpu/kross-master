@@ -6,6 +6,7 @@ import { env, esProduccion } from './config/env';
 import { logger } from './lib/logger';
 import { errorHandler, noEncontradoHandler } from './middleware/errors';
 import { adminRouter } from './modules/admin';
+import { artistasRouter, recintosRouter } from './modules/artistas';
 import { authRouter } from './modules/auth';
 import { entradasRouter, transferenciasRouter } from './modules/entradas';
 import { eventosRouter } from './modules/eventos';
@@ -15,6 +16,7 @@ import { organizadorRouter } from './modules/organizador';
 import { pedidosRouter } from './modules/pedidos';
 import { publicoRouter } from './modules/publico';
 import { puertaRouter } from './modules/puerta';
+import { recibosRouter } from './modules/recibos';
 import { webhooksRouter } from './modules/webhooks';
 import './types';
 
@@ -45,6 +47,9 @@ export function crearApp() {
   app.use('/api/auth', authRouter);
   app.use('/api/me', meRouter);
   app.use('/api/eventos', eventosRouter);
+  app.use('/api/artistas', artistasRouter);
+  app.use('/api/recintos', recintosRouter);
+  app.use('/api/recibos', recibosRouter);
   app.use('/api/pedidos', pedidosRouter);
   app.use('/api/entradas', entradasRouter);
   app.use('/api/transferencias', transferenciasRouter);

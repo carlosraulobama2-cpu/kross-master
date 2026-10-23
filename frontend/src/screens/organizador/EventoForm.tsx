@@ -20,6 +20,7 @@ interface TramoForm {
   precio: string;
   cantidad: string;
   max: string;
+  codigo: string;
 }
 
 const DURACIONES = [1, 2, 3, 4, 6, 12, 24];
@@ -45,7 +46,13 @@ export function EventoFormScreen({ navigation, route }: PropsPantalla<'EventoFor
   const [ciudad, setCiudad] = useState('');
   const [inicia, setInicia] = useState<Date | null>(null);
   const [duracion, setDuracion] = useState(3);
-  const [tramos, setTramos] = useState<TramoForm[]>([{ nombre: 'General', precio: '', cantidad: '', max: '6' }]);
+  const [tramos, setTramos] = useState<TramoForm[]>([{ nombre: 'General', precio: '', cantidad: '', max: '6', codigo: '' }]);
+  const [artistas, setArtistas] = useState<string[]>([]);
+  const [nuevoArtista, setNuevoArtista] = useState('');
+  const [puertas, setPuertas] = useState<Date | null>(null);
+  const [maxPorUsuario, setMaxPorUsuario] = useState('');
+  const [verInfo, setVerInfo] = useState(false);
+  const [info, setInfo] = useState({ como_llegar: '', parking: '', accesibilidad: '', objetos_prohibidos: '' });
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [guardando, setGuardando] = useState<'borrador' | 'publicar' | null>(null);
 
@@ -59,10 +66,23 @@ export function EventoFormScreen({ navigation, route }: PropsPantalla<'EventoFor
     setDireccion(existente.direccion ?? '');
     setCiudad(existente.ciudad);
     setInicia(new Date(existente.inicia_en));
+    setArtistas(existente.artistas.map((a) => a.nombre));
+    setPuertas(existente.puertas_abren_en ? new Date(existente.puertas_abren_en) : null);
+    setMaxPorUsuario(existente.max_por_usuario ? String(existente.max_por_usuario) : '');
+    if (existente.recinto_info) {
+      const r = existente.recinto_info;
+      setInfo({ como_llegar: r.como_llegar ?? '', parking: r.parking ?? '', accesibilidad: r.accesibilidad ?? '', objetos_prohibidos: r.objetos_prohibidos ?? '' });
+    }
     if (existente.termina_en) setDuracion(Math.max(1, Math.round((new Date(existente.termina_en).getTime() - new Date(existente.inicia_en).getTime()) / 3_600_000)));
   }, [existente]);
 
   const ultimoPaso = editando ? 1 : 3;
+
+  function anadirArtista() {
+    const n = nuevoArtista.trim();
+    if (n.length >= 2 && !artistas.some((a) => a.toLowerCase() === n.toLowerCase())) setArtistas((l) => [...l, n]);
+    setNuevoArtista('');
+  }
 
   function validar(p: number): Record<string, string> {
     const e: Record<string, string> = {};
@@ -74,6 +94,7 @@ export function EventoFormScreen({ navigation, route }: PropsPantalla<'EventoFor
       if (!inicia) e.inicia = 'Elige la fecha';
       else if (inicia.getTime() < Date.now()) e.inicia = 'La fecha debe ser futura';
       if (recinto.trim().length < 2) e.recinto = 'Indica el recinto';
+      if (puertas && inicia && puertas.getTime() > inicia.getTime()) e.puertas = 'Las puertas deben abrir antes de que empiece';
       if (ciudad.trim().length < 2) e.ciudad = 'Indica la ciudad';
     }
     if (p === 2) {
@@ -81,7 +102,9 @@ export function EventoFormScreen({ navigation, route }: PropsPantalla<'EventoFor
         if (t.nombre.trim().length < 2) e[`t${i}nombre`] = 'Nombre';
         if (t.precio.trim() === '' || Number.isNaN(euros(t.precio)) || euros(t.precio) < 0) e[`t${i}precio`] = 'Precio';
         if (!(entero(t.cantidad) > 0)) e[`t${i}cantidad`] = 'Cantidad';
+        if (t.codigo.trim() && !/^[A-Z0-9_-]{3,30}$/.test(t.codigo.trim())) e[`t${i}codigo`] = 'Código';
       });
+      if (maxPorUsuario.trim() && !(entero(maxPorUsuario) >= 1 && entero(maxPorUsuario) <= 100)) e.max = 'Entre 1 y 100';
     }
     return e;
   }
@@ -102,6 +125,13 @@ export function EventoFormScreen({ navigation, route }: PropsPantalla<'EventoFor
     ciudad: ciudad.trim(),
     inicia_en: inicia!.toISOString(),
     termina_en: new Date(inicia!.getTime() + duracion * 3_600_000).toISOString(),
+    puertas_abren_en: puertas ? puertas.toISOString() : null,
+    max_por_usuario: maxPorUsuario.trim() ? entero(maxPorUsuario) : null,
+    artistas,
+    como_llegar: info.como_llegar.trim() || null,
+    parking: info.parking.trim() || null,
+    accesibilidad: info.accesibilidad.trim() || null,
+    objetos_prohibidos: info.objetos_prohibidos.trim() || null,
   });
 
   async function guardar(publicar: boolean) {
@@ -131,6 +161,7 @@ export function EventoFormScreen({ navigation, route }: PropsPantalla<'EventoFor
             precio_centimos: euros(t.precio),
             cantidad_total: entero(t.cantidad),
             max_por_pedido: Math.max(1, Math.min(50, entero(t.max) || 10)),
+            codigo_acceso: t.codigo.trim() || null,
             orden: i,
           })),
         },
@@ -220,6 +251,36 @@ export function EventoFormScreen({ navigation, route }: PropsPantalla<'EventoFor
                 ))}
               </View>
             </View>
+            <View style={{ gap: 6 }}>
+              <T v="nota" c="texto2">
+                Artistas (opcional)
+              </T>
+              {artistas.length > 0 && (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: espacio.s }}>
+                  {artistas.map((a) => (
+                    <Chip key={a} texto={a} icono="close" activo onPress={() => setArtistas((l) => l.filter((x) => x !== a))} />
+                  ))}
+                </View>
+              )}
+              <Fila gap={espacio.s}>
+                <View style={{ flex: 1 }}>
+                  <Campo
+                    etiqueta="Añadir artista"
+                    value={nuevoArtista}
+                    onChangeText={setNuevoArtista}
+                    placeholder="Nombre del artista o grupo"
+                    icono="mic-outline"
+                    onSubmitEditing={anadirArtista}
+                  />
+                </View>
+                <Boton v="secundario" bloque={false} deshabilitado={nuevoArtista.trim().length < 2} onPress={anadirArtista} style={{ marginTop: 22 }}>
+                  Añadir
+                </Boton>
+              </Fila>
+              <T v="nota" c="texto3">
+                Quien siga a estos artistas recibirá un aviso al publicar
+              </T>
+            </View>
             <Campo etiqueta="Descripción" value={descripcion} onChangeText={setDescripcion} multiline placeholder="Cuenta qué va a pasar, quién actúa, qué incluye la entrada…" maxLength={5000} />
             <Campo etiqueta="Imagen (URL)" value={imagen} onChangeText={setImagen} error={errores.imagen} icono="image-outline" placeholder="https://…" autoCapitalize="none" keyboardType="url" ayuda="Formato horizontal, mínimo 1200 px de ancho" />
             <ImagenEvento uri={/^https?:\/\//.test(imagen) ? imagen : null} categoria={categoria} style={{ height: 180 }} />
@@ -245,9 +306,32 @@ export function EventoFormScreen({ navigation, route }: PropsPantalla<'EventoFor
                 ))}
               </ScrollView>
             </View>
+            <SelectorFecha etiqueta="Apertura de puertas (opcional)" valor={puertas} onCambio={setPuertas} minimo={new Date()} />
+            {errores.puertas && (
+              <T v="nota" c="peligro" style={{ marginTop: -espacio.s }}>
+                {errores.puertas}
+              </T>
+            )}
             <Campo etiqueta="Recinto" value={recinto} onChangeText={setRecinto} error={errores.recinto} icono="business-outline" placeholder="Sala, teatro, estadio…" />
             <Campo etiqueta="Dirección" value={direccion} onChangeText={setDireccion} icono="map-outline" placeholder="Calle y número (opcional)" />
             <Campo etiqueta="Ciudad" value={ciudad} onChangeText={setCiudad} error={errores.ciudad} icono="location-outline" placeholder="Ej.: Sevilla" />
+            <Pulsable onPress={() => setVerInfo((v) => !v)} style={s.anadir} escala={0.98}>
+              <Icono n={verInfo ? 'chevron-up' : 'information-circle-outline'} c={color.acento} />
+              <T v="cuerpoFuerte" c="acento">
+                Información práctica del recinto (opcional)
+              </T>
+            </Pulsable>
+            {verInfo && (
+              <View style={{ gap: espacio.l }}>
+                <Campo etiqueta="Cómo llegar" value={info.como_llegar} onChangeText={(v) => setInfo((i) => ({ ...i, como_llegar: v }))} multiline placeholder="Metro, bus, lanzaderas…" />
+                <Campo etiqueta="Parking" value={info.parking} onChangeText={(v) => setInfo((i) => ({ ...i, parking: v }))} multiline placeholder="Dónde aparcar y precio" />
+                <Campo etiqueta="Accesibilidad" value={info.accesibilidad} onChangeText={(v) => setInfo((i) => ({ ...i, accesibilidad: v }))} multiline placeholder="Rampas, zona reservada, aseos adaptados…" />
+                <Campo etiqueta="Objetos prohibidos" value={info.objetos_prohibidos} onChangeText={(v) => setInfo((i) => ({ ...i, objetos_prohibidos: v }))} multiline placeholder="Cristal, paraguas, cámaras…" />
+                <T v="nota" c="texto3">
+                  Se guarda en la ficha del recinto y se muestra en todos sus eventos.
+                </T>
+              </View>
+            )}
           </View>
         )}
 
@@ -279,10 +363,29 @@ export function EventoFormScreen({ navigation, route }: PropsPantalla<'EventoFor
                       <Campo etiqueta="Máx./pedido" value={t.max} onChangeText={cambiar('max')} keyboardType="number-pad" />
                     </View>
                   </Fila>
+                  <Campo
+                    etiqueta="Código de preventa (opcional)"
+                    value={t.codigo}
+                    onChangeText={(v) => cambiar('codigo')(v.toUpperCase())}
+                    error={errores[`t${i}codigo`] && 'Solo letras, números, - y _ (3 a 30)'}
+                    placeholder="Ej.: FANCLUB"
+                    autoCapitalize="characters"
+                    icono="key-outline"
+                    ayuda="Si lo rellenas, este tipo de entrada solo se ve y se compra con el código"
+                  />
                 </View>
               );
             })}
-            <Pulsable onPress={() => setTramos((ts) => [...ts, { nombre: '', precio: '', cantidad: '', max: '6' }])} style={s.anadir} escala={0.98}>
+            <Campo
+              etiqueta="Máximo de entradas por persona (opcional)"
+              value={maxPorUsuario}
+              onChangeText={setMaxPorUsuario}
+              error={errores.max}
+              keyboardType="number-pad"
+              icono="person-outline"
+              ayuda="Frena a la reventa: cuenta todas las compras de la misma cuenta"
+            />
+            <Pulsable onPress={() => setTramos((ts) => [...ts, { nombre: '', precio: '', cantidad: '', max: '6', codigo: '' }])} style={s.anadir} escala={0.98}>
               <Icono n="add-circle-outline" c={color.acento} />
               <T v="cuerpoFuerte" c="acento">
                 Añadir otro tipo de entrada
@@ -303,11 +406,12 @@ export function EventoFormScreen({ navigation, route }: PropsPantalla<'EventoFor
               <T c="texto2">
                 {recinto}, {ciudad}
               </T>
+              {artistas.length > 0 && <T c="texto2">Con {artistas.join(', ')}</T>}
               <Separador m={espacio.s} />
               {tramos.map((t, i) => (
                 <Fila key={i} style={{ justifyContent: 'space-between' }}>
                   <T>
-                    {t.nombre} · {entero(t.cantidad)} uds.
+                    {t.nombre} · {entero(t.cantidad)} uds.{t.codigo ? ` · 🔑 ${t.codigo}` : ''}
                   </T>
                   <T v="cuerpoFuerte">{precio(euros(t.precio))}</T>
                 </Fila>

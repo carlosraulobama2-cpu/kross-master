@@ -12,6 +12,10 @@ export type Pestanas = {
 export type Rutas = {
   Pestanas: NavigatorScreenParams<Pestanas>;
   Evento: { id: string };
+  Artista: { id: string };
+  Recinto: { id: string };
+  Pedidos: undefined;
+  Pedido: { id: string };
   Pago: { pedidoId: string; clientSecret: string | null };
   Confirmacion: { pedidoId: string };
   Entrada: { id: string };

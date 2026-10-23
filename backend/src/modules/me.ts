@@ -166,3 +166,15 @@ meRouter.post('/notificaciones/leer', async (req, res) => {
   ok(await consulta);
   res.status(204).end();
 });
+
+/** Artistas y recintos que sigo. */
+meRouter.get('/siguiendo', async (req, res) => {
+  const filas = ok(
+    await db
+      .from('seguimientos')
+      .select('creado_en, artista:artistas(id, nombre, imagen_url), recinto:recintos(id, nombre, ciudad, imagen_url)')
+      .eq('usuario_id', usuarioDe(req).id)
+      .order('creado_en', { ascending: false }),
+  ) as unknown as { artista: { id: string; nombre: string; imagen_url: string | null } | null; recinto: { id: string; nombre: string; ciudad: string; imagen_url: string | null } | null }[];
+  res.json({ artistas: filas.flatMap((f) => (f.artista ? [f.artista] : [])), recintos: filas.flatMap((f) => (f.recinto ? [f.recinto] : [])) });
+});

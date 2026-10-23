@@ -10,7 +10,9 @@ import type { Pestanas, Rutas } from './tipos';
 
 import { AccesoScreen } from '../screens/auth/Acceso';
 import { BuscarScreen } from '../screens/explorar/Buscar';
+import { ArtistaScreen } from '../screens/explorar/Artista';
 import { EventoScreen } from '../screens/explorar/Evento';
+import { RecintoScreen } from '../screens/explorar/Recinto';
 import { ExplorarScreen } from '../screens/explorar/Explorar';
 import { ConfirmacionScreen } from '../screens/compra/Confirmacion';
 import { PagoScreen } from '../screens/compra/Pago';
@@ -21,6 +23,7 @@ import { EditarPerfilScreen } from '../screens/perfil/EditarPerfil';
 import { HacerseOrganizadorScreen } from '../screens/perfil/HacerseOrganizador';
 import { LegalScreen } from '../screens/perfil/Legal';
 import { NotificacionesScreen } from '../screens/perfil/Notificaciones';
+import { PedidoScreen, PedidosScreen } from '../screens/perfil/Pedidos';
 import { PerfilScreen } from '../screens/perfil/Perfil';
 import { EscanerScreen } from '../screens/organizador/Escaner';
 import { EventoFormScreen } from '../screens/organizador/EventoForm';
@@ -98,6 +101,8 @@ const enlaces: LinkingOptions<Rutas> = {
     screens: {
       Pestanas: { screens: { Explorar: '', Buscar: 'buscar', Entradas: 'entradas', Perfil: 'perfil' } },
       Evento: 'evento/:id',
+      Artista: 'artista/:id',
+      Recinto: 'recinto/:id',
       Entrada: 'entrada/:id',
     },
   },
@@ -109,6 +114,10 @@ export function Navegacion() {
       <Stack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: color.fondo }, animation: 'slide_from_right' }}>
         <Stack.Screen name="Pestanas" component={PestanasPrincipales} />
         <Stack.Screen name="Evento" component={EventoScreen} />
+        <Stack.Screen name="Artista" component={ArtistaScreen} />
+        <Stack.Screen name="Recinto" component={RecintoScreen} />
+        <Stack.Screen name="Pedidos" component={PedidosScreen} />
+        <Stack.Screen name="Pedido" component={PedidoScreen} />
         <Stack.Screen name="Pago" component={PagoScreen} />
         <Stack.Screen name="Confirmacion" component={ConfirmacionScreen} options={{ gestureEnabled: false, animation: 'fade' }} />
         <Stack.Screen name="Entrada" component={EntradaScreen} />

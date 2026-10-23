@@ -24,6 +24,9 @@ const ERRORES_SQL: Record<string, AppError> = {
   TRANSFERENCIA_NO_DISPONIBLE: conflicto('TRANSFERENCIA_NO_DISPONIBLE', 'La transferencia ya no está disponible'),
   ENTRADA_NO_TRANSFERIBLE: conflicto('ENTRADA_NO_TRANSFERIBLE', 'Esta entrada ya no se puede transferir'),
   PEDIDO_NO_REEMBOLSABLE: conflicto('PEDIDO_NO_REEMBOLSABLE', 'Este pedido no se puede reembolsar'),
+  CODIGO_INVALIDO: peticionInvalida('CODIGO_INVALIDO', 'El código de descuento no es válido o ya se ha agotado'),
+  PREVENTA_CODIGO: peticionInvalida('PREVENTA_CODIGO', 'Necesitas el código de preventa para estas entradas'),
+  LIMITE_POR_USUARIO: conflicto('LIMITE_POR_USUARIO', 'Has alcanzado el máximo de entradas por persona para este evento'),
 };
 
 export function errorDesdeSql(error: { message?: string } | null | undefined): Error {
