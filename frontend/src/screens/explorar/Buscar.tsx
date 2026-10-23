@@ -8,6 +8,7 @@ import { useEventos, type FiltrosEventos } from '../../lib/consultas';
 import { plural } from '../../lib/formato';
 import type { PropsPestana } from '../../navigation/tipos';
 import { CATEGORIAS, color, espacio, radio, tipo } from '../../theme';
+import { traducir as tx } from '../../lib/i18n';
 
 type Cuando = 'cualquiera' | 'hoy' | 'manana' | 'finde' | 'semana' | 'mes';
 const CUANDO: { id: Cuando; nombre: string }[] = [
@@ -79,23 +80,23 @@ export function BuscarScreen({ navigation, route }: PropsPestana<'Buscar'>) {
   return (
     <View style={{ flex: 1, backgroundColor: color.fondo, paddingTop: insets.top + espacio.l }}>
       <View style={{ paddingHorizontal: espacio.xl, gap: espacio.l }}>
-        <T v="titulo">Buscar</T>
+        <T v="titulo">{tx('Buscar')}</T>
         <View style={s.buscador}>
           <Icono n="search" tam={20} c={color.texto3} />
           <TextInput
             ref={entrada}
             value={texto}
             onChangeText={setTexto}
-            placeholder="Artistas, salas, ciudades…"
+            placeholder={tx('Artistas, salas, ciudades…')}
             placeholderTextColor={color.texto3}
             selectionColor={color.acento}
             returnKeyType="search"
             autoCorrect={false}
-            accessibilityLabel="Buscar eventos"
+            accessibilityLabel={tx('Buscar eventos')}
             style={s.entrada}
           />
           {texto.length > 0 && (
-            <Pulsable onPress={() => setTexto('')} accessibilityLabel="Borrar búsqueda" hitSlop={10}>
+            <Pulsable onPress={() => setTexto('')} accessibilityLabel={tx('Borrar búsqueda')} hitSlop={10}>
               <Icono n="close-circle" tam={20} c={color.texto3} />
             </Pulsable>
           )}
@@ -103,27 +104,27 @@ export function BuscarScreen({ navigation, route }: PropsPestana<'Buscar'>) {
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.carril} style={{ flexGrow: 0 }}>
-        <Chip texto="Todo" activo={!categoria} onPress={() => setCategoria(undefined)} />
+        <Chip texto={tx('Todo')} activo={!categoria} onPress={() => setCategoria(undefined)} />
         {CATEGORIAS.map((c) => (
-          <Chip key={c.id} texto={c.nombre} icono={c.icono} activo={categoria === c.id} onPress={() => setCategoria(categoria === c.id ? undefined : c.id)} />
+          <Chip key={c.id} texto={tx(c.nombre)} icono={c.icono} activo={categoria === c.id} onPress={() => setCategoria(categoria === c.id ? undefined : c.id)} />
         ))}
       </ScrollView>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[s.carril, { paddingTop: 0 }]} style={{ flexGrow: 0 }}>
         {CUANDO.map((c) => (
-          <Chip key={c.id} texto={c.nombre} icono={c.id === 'cualquiera' ? 'calendar-outline' : undefined} activo={cuando === c.id} onPress={() => setCuando(c.id)} />
+          <Chip key={c.id} texto={tx(c.nombre)} icono={c.id === 'cualquiera' ? 'calendar-outline' : undefined} activo={cuando === c.id} onPress={() => setCuando(c.id)} />
         ))}
-        <Chip texto="Accesible" icono="accessibility-outline" activo={accesible} onPress={() => setAccesible((v) => !v)} />
+        <Chip texto={tx('Accesible')} icono="accessibility-outline" activo={accesible} onPress={() => setAccesible((v) => !v)} />
       </ScrollView>
 
       <Fila style={s.barraOrden}>
         <T v="nota" c="texto2" style={{ flex: 1 }}>
-          {consulta.isPending ? 'Buscando…' : plural(total, 'evento', 'eventos')}
+          {consulta.isPending ? tx('Buscando…') : plural(total, 'evento', 'eventos')}
         </T>
         {ORDENES.map((o) => (
           <Pulsable key={o.id} onPress={() => setOrden(o.id)} accessibilityState={{ selected: orden === o.id }} hitSlop={6}>
             <T v="nota" c={orden === o.id ? 'acento' : 'texto3'} style={{ fontWeight: '700' }}>
-              {o.nombre}
+              {tx(o.nombre)}
             </T>
           </Pulsable>
         ))}
@@ -156,8 +157,8 @@ export function BuscarScreen({ navigation, route }: PropsPestana<'Buscar'>) {
           ListEmptyComponent={
             <Vacio
               icono="search-outline"
-              titulo="Sin resultados"
-              texto={q ? `No encontramos nada para «${q}». Prueba con otra palabra o quita filtros.` : 'No hay eventos con estos filtros. Prueba con otras fechas o categorías.'}
+              titulo={tx('Sin resultados')}
+              texto={q ? tx('No encontramos nada para «{0}». Prueba con otra palabra o quita filtros.', { 0: q }) : tx('No hay eventos con estos filtros. Prueba con otras fechas o categorías.')}
             />
           }
         />

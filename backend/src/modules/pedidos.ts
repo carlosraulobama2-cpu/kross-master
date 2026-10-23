@@ -124,7 +124,8 @@ async function detallePedido(pedidoId: string, usuarioId: string) {
         'id, estado, es_reventa, canal, subtotal_centimos, descuento_centimos, extras_centimos, gastos_centimos, seguro_centimos, total_centimos, moneda, expira_en, pagado_en, creado_en, stripe_payment_intent_id, ' +
           'evento:eventos(id, titulo, categoria, inicia_en, recinto, ciudad, imagen_url, fecha_original, reembolso_aplazamiento_hasta), ' +
           'items:pedido_items(cantidad, precio_unitario_centimos, tramo:tramos(id, nombre)), reclamacion:reclamaciones_seguro(estado, respuesta, creado_en), ' +
-          'extras:pedido_extras(cantidad, precio_unitario_centimos, codigo, canjeado_en, extra:extras(id, nombre, tipo))',
+          'extras:pedido_extras(cantidad, precio_unitario_centimos, codigo, canjeado_en, extra:extras(id, nombre, tipo)), ' +
+          'asientos(seccion, fila, numero)',
       )
       .eq('id', pedidoId)
       .eq('usuario_id', usuarioId)

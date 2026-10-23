@@ -11,6 +11,8 @@ import { Eventos } from './pages/Eventos';
 import { Login } from './pages/Login';
 import { Pedidos } from './pages/Pedidos';
 import { Reclamaciones } from './pages/Reclamaciones';
+import { Soporte } from './pages/Soporte';
+import { Faqs } from './pages/Faqs';
 import { Resumen } from './pages/Resumen';
 import { Usuarios } from './pages/Usuarios';
 import './styles.css';
@@ -38,6 +40,8 @@ createRoot(document.getElementById('root')!).render(
                 <Route path="eventos" element={<Eventos />} />
                 <Route path="pedidos" element={<Pedidos />} />
                 <Route path="reclamaciones" element={<Reclamaciones />} />
+                <Route path="soporte" element={<Soporte />} />
+                <Route path="ayuda" element={<Faqs />} />
                 <Route path="usuarios" element={<Usuarios />} />
                 <Route path="auditoria" element={<Auditoria />} />
                 <Route path="ajustes" element={<Ajustes />} />

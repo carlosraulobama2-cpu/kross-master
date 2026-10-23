@@ -30,3 +30,5 @@ export const IconoFlechaIzq = (p: Props) => (<Base {...p}><path d="m15 18-6-6 6-
 export const IconoFlechaDer = (p: Props) => (<Base {...p}><path d="m9 18 6-6-6-6" /></Base>);
 export const IconoCandado = (p: Props) => (<Base {...p}><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></Base>);
 export const IconoX = (p: Props) => (<Base {...p}><path d="M18 6 6 18M6 6l12 12" /></Base>);
+export const IconoAyuda = (p: Props) => (<Base {...p}><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01" /></Base>);
+export const IconoSoporte = (p: Props) => (<Base {...p}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></Base>);

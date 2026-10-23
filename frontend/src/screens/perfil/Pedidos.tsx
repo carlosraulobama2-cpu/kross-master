@@ -5,7 +5,7 @@ import { ImagenEvento } from '../../components/evento';
 import { Cabecera, Pantalla } from '../../components/pantalla';
 import { urlAbsoluta } from '../../lib/calendario';
 import { invalidarYo, usePedido, usePedidos } from '../../lib/consultas';
-import { fechaLarga, hora, plural, precioExacto } from '../../lib/formato';
+import { fechaFrase, fechaLarga, hora, plural, precioExacto } from '../../lib/formato';
 import type { EstadoPedido, Pedido } from '../../lib/tipos';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -16,6 +16,8 @@ import { confirmar } from '../../lib/confirmar';
 import type { PropsPantalla } from '../../navigation/tipos';
 import { color, espacio, radio } from '../../theme';
 import * as WebBrowser from 'expo-web-browser';
+import { traducir as tx } from '../../lib/i18n';
+import { describirButacas } from '../../components/plano';
 
 const ESTADO: Record<EstadoPedido, { texto: string; tono: 'acento' | 'aviso' | 'neutro' | 'info' }> = {
   pagado: { texto: 'Pagado', tono: 'acento' },
@@ -28,7 +30,7 @@ const ESTADO: Record<EstadoPedido, { texto: string; tono: 'acento' | 'aviso' | '
 export function PedidosScreen({ navigation }: PropsPantalla<'Pedidos'>) {
   const { data, error, isPending, refetch, isRefetching } = usePedidos();
   return (
-    <Pantalla cabecera={<Cabecera titulo="Mis pedidos" />} recargar={() => void refetch()} recargando={isRefetching}>
+    <Pantalla cabecera={<Cabecera titulo={tx('Mis pedidos')} />} recargar={() => void refetch()} recargando={isRefetching}>
       {error ? (
         <ErrorEstado error={error} reintentar={() => void refetch()} />
       ) : isPending ? (
@@ -38,7 +40,7 @@ export function PedidosScreen({ navigation }: PropsPantalla<'Pedidos'>) {
           ))}
         </View>
       ) : data.length === 0 ? (
-        <Vacio icono="receipt-outline" titulo="Aún no has comprado nada" texto="Aquí tendrás todas tus compras con su recibo." />
+        <Vacio icono="receipt-outline" titulo={tx('Aún no has comprado nada')} texto={tx('Aquí tendrás todas tus compras con su recibo.')} />
       ) : (
         <View style={{ gap: espacio.s }}>
           {data.map((p) => {
@@ -57,7 +59,7 @@ export function PedidosScreen({ navigation }: PropsPantalla<'Pedidos'>) {
                     {fechaLarga(p.pagado_en ?? p.creado_en)}
                   </T>
                 </View>
-                <Insignia texto={ESTADO[p.estado].texto} tono={ESTADO[p.estado].tono} />
+                <Insignia texto={tx(ESTADO[p.estado].texto)} tono={ESTADO[p.estado].tono} />
               </Pulsable>
             );
           })}
@@ -71,11 +73,11 @@ export function PedidoScreen({ navigation, route }: PropsPantalla<'Pedido'>) {
   const { data: p, error, refetch } = usePedido(route.params.id, false);
   return (
     <Pantalla
-      cabecera={<Cabecera titulo={p ? `Pedido ${p.id.slice(0, 8).toUpperCase()}` : 'Pedido'} />}
+      cabecera={<Cabecera titulo={p ? tx('Pedido {0}', { 0: p.id.slice(0, 8).toUpperCase() }) : 'Pedido'} />}
       pie={
         p?.recibo_url ? (
           <Boton icono="document-text-outline" onPress={() => void WebBrowser.openBrowserAsync(urlAbsoluta(p.recibo_url!))}>
-            Ver recibo
+            {tx('Ver recibo')}
           </Boton>
         ) : undefined
       }
@@ -101,8 +103,8 @@ export function PedidoScreen({ navigation, route }: PropsPantalla<'Pedido'>) {
           </Pulsable>
           <View style={[s.fila, { flexDirection: 'column', alignItems: 'stretch', gap: espacio.m, marginTop: espacio.l }]}>
             <Fila style={{ justifyContent: 'space-between' }}>
-              <T c="texto2">Estado</T>
-              <Insignia texto={ESTADO[p.estado].texto} tono={ESTADO[p.estado].tono} />
+              <T c="texto2">{tx('Estado')}</T>
+              <Insignia texto={tx(ESTADO[p.estado].texto)} tono={ESTADO[p.estado].tono} />
             </Fila>
             {p.items.map((i) => (
               <Fila key={i.tramo.id} style={{ justifyContent: 'space-between' }}>
@@ -112,6 +114,11 @@ export function PedidoScreen({ navigation, route }: PropsPantalla<'Pedido'>) {
                 <T v="cuerpoFuerte">{precioExacto(i.cantidad * i.precio_unitario_centimos)}</T>
               </Fila>
             ))}
+            {p.asientos?.length > 0 && (
+              <T v="nota" c="acento" style={{ fontWeight: '700', marginTop: -4 }}>
+                {describirButacas(p.asientos.map((a, k) => ({ id: String(k), ...a })), tx)}
+              </T>
+            )}
             {p.extras.map((x) => (
               <Fila key={x.extra.id} style={{ justifyContent: 'space-between' }}>
                 <T c="texto2">
@@ -122,44 +129,44 @@ export function PedidoScreen({ navigation, route }: PropsPantalla<'Pedido'>) {
             ))}
             {p.descuento_centimos > 0 && (
               <Fila style={{ justifyContent: 'space-between' }}>
-                <T c="acento">Descuento</T>
+                <T c="acento">{tx('Descuento')}</T>
                 <T v="cuerpoFuerte" c="acento">
-                  −{precioExacto(p.descuento_centimos)}
+                  {tx('−{0}', { 0: precioExacto(p.descuento_centimos) })}
                 </T>
               </Fila>
             )}
             {p.canal === 'invitacion' && (
               <Fila style={{ justifyContent: 'space-between' }}>
-                <T c="texto2">Origen</T>
-                <Insignia texto="Invitación" tono="info" icono="gift-outline" />
+                <T c="texto2">{tx('Origen')}</T>
+                <Insignia texto={tx('Invitación')} tono="info" icono="gift-outline" />
               </Fila>
             )}
             <Fila style={{ justifyContent: 'space-between' }}>
-              <T c="texto2">Gastos de gestión</T>
+              <T c="texto2">{tx('Gastos de gestión')}</T>
               <T v="cuerpoFuerte">{precioExacto(p.gastos_centimos)}</T>
             </Fila>
             {p.seguro_centimos > 0 && (
               <Fila style={{ justifyContent: 'space-between' }}>
-                <T c="texto2">Protección de reembolso</T>
+                <T c="texto2">{tx('Protección de reembolso')}</T>
                 <T v="cuerpoFuerte">{precioExacto(p.seguro_centimos)}</T>
               </Fila>
             )}
             <Separador m={0} />
             <Fila style={{ justifyContent: 'space-between' }}>
-              <T v="cabecera">Total</T>
+              <T v="cabecera">{tx('Total')}</T>
               <T v="subtitulo">{precioExacto(p.total_centimos)}</T>
             </Fila>
             {p.pagado_en && (
               <T v="nota" c="texto3">
-                Pagado el {fechaLarga(p.pagado_en)} a las {hora(p.pagado_en)}
+                {tx('Pagado el {0} a las {1}', { 0: fechaFrase(p.pagado_en), 1: hora(p.pagado_en) })}
               </T>
             )}
           </View>
           {p.extras.length > 0 && p.estado === 'pagado' && (
             <View style={[s.fila, { flexDirection: 'column', alignItems: 'stretch', gap: espacio.m, marginTop: espacio.l }]}>
-              <T v="cuerpoFuerte">Tus extras</T>
+              <T v="cuerpoFuerte">{tx('Tus extras')}</T>
               <T v="nota" c="texto2">
-                Enseña el código en el punto de recogida o en la entrada del parking.
+                {tx('Enseña el código en el punto de recogida o en la entrada del parking.')}
               </T>
               {p.extras.map((x) => (
                 <Fila key={x.extra.id} gap={espacio.m}>
@@ -168,7 +175,7 @@ export function PedidoScreen({ navigation, route }: PropsPantalla<'Pedido'>) {
                     {x.cantidad} × {x.extra.nombre}
                   </T>
                   {x.canjeado_en ? (
-                    <Insignia texto="Canjeado" />
+                    <Insignia texto={tx('Canjeado')} />
                   ) : (
                     <T v="cabecera" style={{ letterSpacing: 2, fontVariant: ['tabular-nums'] }}>
                       {x.codigo}
@@ -200,7 +207,7 @@ function ReembolsoAplazamiento({ pedidoId, hasta, fechaOriginal }: { pedidoId: s
     setEnviando(true);
     try {
       await api(`/pedidos/${pedidoId}/reembolso-aplazamiento`, { method: 'POST' });
-      avisar('Reembolso en camino. Lo verás en unos días en tu tarjeta', 'exito');
+      avisar(tx('Reembolso en camino. Lo verás en unos días en tu tarjeta'), 'exito');
       await invalidarYo(qc);
     } catch (e) {
       avisar(mensajeDe(e), 'error');
@@ -214,14 +221,15 @@ function ReembolsoAplazamiento({ pedidoId, hasta, fechaOriginal }: { pedidoId: s
       <Fila gap={espacio.m}>
         <Icono n="calendar-outline" c={color.aviso} />
         <View style={{ flex: 1 }}>
-          <T v="cuerpoFuerte">El evento se ha aplazado</T>
+          <T v="cuerpoFuerte">{tx('El evento se ha aplazado')}</T>
           <T v="nota" c="texto2">
-            {fechaOriginal ? `Era el ${fechaLarga(fechaOriginal)}. ` : ''}Tus entradas valen para la nueva fecha. Si no puedes ir, pide el reembolso hasta el {fechaLarga(hasta)}.
+            {fechaOriginal ? `${tx('Era el {0}.', { 0: fechaFrase(fechaOriginal) })} ` : ''}
+            {tx('Tus entradas valen para la nueva fecha. Si no puedes ir, pide el reembolso hasta el {0}.', { 0: fechaFrase(hasta) })}
           </T>
         </View>
       </Fila>
       <Boton v="secundario" icono="cash-outline" cargando={enviando} onPress={() => void pedir()}>
-        No puedo ir: pedir reembolso
+        {tx('No puedo ir: pedir reembolso')}
       </Boton>
     </View>
   );
@@ -234,13 +242,13 @@ function Proteccion({ pedidoId, reclamacion, puede }: { pedidoId: string; reclam
   const [abierto, setAbierto] = useState(false);
   const [motivo, setMotivo] = useState('');
   const [enviando, setEnviando] = useState(false);
-  const ESTADO_R = { pendiente: ['En revisión', 'aviso'], aprobada: ['Aprobada · reembolso en camino', 'acento'], rechazada: ['Rechazada', 'peligro'] } as const;
+  const ESTADO_R = { pendiente: [tx('En revisión'), 'aviso'], aprobada: [tx('Aprobada · reembolso en camino'), 'acento'], rechazada: [tx('Rechazada'), 'peligro'] } as const;
 
   async function enviar() {
     setEnviando(true);
     try {
       await api(`/pedidos/${pedidoId}/reclamacion`, { method: 'POST', body: { motivo: motivo.trim() } });
-      avisar('Reclamación enviada. La revisaremos en 48 h', 'exito');
+      avisar(tx('Reclamación enviada. La revisaremos en 48 h'), 'exito');
       setAbierto(false);
       await invalidarYo(qc);
     } catch (e) {
@@ -255,9 +263,9 @@ function Proteccion({ pedidoId, reclamacion, puede }: { pedidoId: string; reclam
       <Fila gap={espacio.m}>
         <Icono n="umbrella" c={color.acento} />
         <View style={{ flex: 1 }}>
-          <T v="cuerpoFuerte">Protección de reembolso</T>
+          <T v="cuerpoFuerte">{tx('Protección de reembolso')}</T>
           <T v="nota" c="texto2">
-            Si no puedes ir por un motivo justificado, te devolvemos las entradas.
+            {tx('Si no puedes ir por un motivo justificado, te devolvemos las entradas.')}
           </T>
         </View>
       </Fila>
@@ -272,18 +280,18 @@ function Proteccion({ pedidoId, reclamacion, puede }: { pedidoId: string; reclam
         </View>
       ) : !puede ? (
         <T v="nota" c="texto3">
-          Solo se puede reclamar antes de que empiece el evento.
+          {tx('Solo se puede reclamar antes de que empiece el evento.')}
         </T>
       ) : abierto ? (
         <>
-          <Campo etiqueta="¿Qué ha pasado?" value={motivo} onChangeText={setMotivo} multiline placeholder="Cuéntanos el motivo. Podemos pedirte un justificante." />
+          <Campo etiqueta={tx('¿Qué ha pasado?')} value={motivo} onChangeText={setMotivo} multiline placeholder={tx('Cuéntanos el motivo. Podemos pedirte un justificante.')} />
           <Boton onPress={() => void enviar()} cargando={enviando} deshabilitado={motivo.trim().length < 10}>
-            Enviar reclamación
+            {tx('Enviar reclamación')}
           </Boton>
         </>
       ) : (
         <Boton v="secundario" icono="document-text-outline" onPress={() => setAbierto(true)}>
-          No puedo ir: reclamar
+          {tx('No puedo ir: reclamar')}
         </Boton>
       )}
     </View>

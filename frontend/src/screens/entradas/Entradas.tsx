@@ -12,6 +12,7 @@ import { invalidarYo, useEntradas, useTransferencias } from '../../lib/consultas
 import type { Entrada, Transferencia } from '../../lib/tipos';
 import type { PropsPestana } from '../../navigation/tipos';
 import { color, espacio, radio } from '../../theme';
+import { traducir as tx } from '../../lib/i18n';
 
 export function EntradasScreen({ navigation }: PropsPestana<'Entradas'>) {
   const { usuario } = useAuth();
@@ -35,12 +36,12 @@ export function EntradasScreen({ navigation }: PropsPestana<'Entradas'>) {
   if (!usuario) {
     return (
       <Pantalla>
-        <T v="titulo">Entradas</T>
+        <T v="titulo">{tx('Entradas')}</T>
         <Vacio
           icono="ticket-outline"
-          titulo="Tus entradas, siempre a mano"
-          texto="Inicia sesión para ver tus entradas. Funcionan sin conexión y su QR cambia cada 30 segundos para que nadie pueda copiarlas."
-          accion={<Boton onPress={() => navigation.navigate('Acceso')}>Iniciar sesión</Boton>}
+          titulo={tx('Tus entradas, siempre a mano')}
+          texto={tx('Inicia sesión para ver tus entradas. Funcionan sin conexión y su QR cambia cada 30 segundos para que nadie pueda copiarlas.')}
+          accion={<Boton onPress={() => navigation.navigate('Acceso')}>{tx('Iniciar sesión')}</Boton>}
         />
       </Pantalla>
     );
@@ -56,7 +57,7 @@ export function EntradasScreen({ navigation }: PropsPestana<'Entradas'>) {
       }}
       recargando={isRefetching}
     >
-      <T v="titulo">Entradas</T>
+      <T v="titulo">{tx('Entradas')}</T>
 
       {(transferencias?.recibidas ?? []).map((t) => (
         <TransferenciaRecibida key={t.id} t={t} />
@@ -66,7 +67,7 @@ export function EntradasScreen({ navigation }: PropsPestana<'Entradas'>) {
         {(['proximas', 'pasadas'] as const).map((v) => (
           <Pulsable key={v} onPress={() => setVista(v)} style={[s.segmento, vista === v && s.segmentoActivo]} accessibilityState={{ selected: vista === v }} escala={0.98}>
             <T v="cuerpoFuerte" c={vista === v ? 'texto' : 'texto3'}>
-              {v === 'proximas' ? `Próximas${grupos.proximas.length ? ` (${grupos.proximas.length})` : ''}` : 'Pasadas'}
+              {v === 'proximas' ? `${tx('Próximas')}${grupos.proximas.length ? ` (${grupos.proximas.length})` : ''}` : tx('Pasadas')}
             </T>
           </Pulsable>
         ))}
@@ -82,9 +83,9 @@ export function EntradasScreen({ navigation }: PropsPestana<'Entradas'>) {
       ) : lista.length === 0 ? (
         <Vacio
           icono={vista === 'proximas' ? 'ticket-outline' : 'time-outline'}
-          titulo={vista === 'proximas' ? 'Aún no tienes planes' : 'Sin eventos pasados'}
-          texto={vista === 'proximas' ? 'Cuando compres entradas aparecerán aquí, listas para enseñar en la puerta.' : 'Aquí verás los eventos a los que ya has ido.'}
-          accion={vista === 'proximas' ? <Boton icono="compass" onPress={() => navigation.navigate('Explorar')}>Explorar eventos</Boton> : undefined}
+          titulo={vista === 'proximas' ? tx('Aún no tienes planes') : tx('Sin eventos pasados')}
+          texto={vista === 'proximas' ? tx('Cuando compres entradas aparecerán aquí, listas para enseñar en la puerta.') : tx('Aquí verás los eventos a los que ya has ido.')}
+          accion={vista === 'proximas' ? <Boton icono="compass" onPress={() => navigation.navigate('Explorar')}>{tx('Explorar eventos')}</Boton> : undefined}
         />
       ) : (
         <View style={{ gap: espacio.l }}>
@@ -105,7 +106,7 @@ function TransferenciaRecibida({ t }: { t: Transferencia }) {
     setOcupado(accion);
     try {
       await api(`/transferencias/${t.id}/${accion}`, { method: 'POST' });
-      avisar(accion === 'aceptar' ? '¡Entrada añadida a tu cartera!' : 'Transferencia rechazada', accion === 'aceptar' ? 'exito' : 'info');
+      avisar(accion === 'aceptar' ? tx('¡Entrada añadida a tu cartera!') : tx('Transferencia rechazada'), accion === 'aceptar' ? 'exito' : 'info');
       await invalidarYo(qc);
     } catch (e) {
       avisar(mensajeDe(e), 'error');
@@ -128,10 +129,10 @@ function TransferenciaRecibida({ t }: { t: Transferencia }) {
       </Fila>
       <Fila gap={espacio.s} style={{ marginTop: espacio.m }}>
         <Boton v="secundario" pequeno onPress={() => void resolver('rechazar')} cargando={ocupado === 'rechazar'} style={{ flex: 1 }}>
-          Rechazar
+          {tx('Rechazar')}
         </Boton>
         <Boton pequeno onPress={() => void resolver('aceptar')} cargando={ocupado === 'aceptar'} style={{ flex: 1 }}>
-          Aceptar
+          {tx('Aceptar')}
         </Boton>
       </Fila>
     </View>

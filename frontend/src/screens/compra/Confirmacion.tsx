@@ -9,6 +9,7 @@ import { fechaLarga, hora, plural } from '../../lib/formato';
 import { haptica } from '../../lib/haptica';
 import type { PropsPantalla } from '../../navigation/tipos';
 import { color, espacio, radio } from '../../theme';
+import { traducir as tx } from '../../lib/i18n';
 
 export function ConfirmacionScreen({ navigation, route }: PropsPantalla<'Confirmacion'>) {
   const { pedidoId } = route.params;
@@ -47,7 +48,7 @@ export function ConfirmacionScreen({ navigation, route }: PropsPantalla<'Confirm
             </Animated.View>
             <Animated.View style={{ opacity: aparicion, alignItems: 'center', gap: espacio.s }}>
               <T v="display" centro>
-                ¡Ya tienes tus entradas!
+                {tx('¡Ya tienes tus entradas!')}
               </T>
               <T c="texto2" centro style={{ maxWidth: 320 }}>
                 {plural(entradas, 'entrada', 'entradas')} para {pedido.evento.titulo}. Te esperamos el {fechaLarga(pedido.evento.inicia_en).toLowerCase()} a las{' '}
@@ -59,10 +60,10 @@ export function ConfirmacionScreen({ navigation, route }: PropsPantalla<'Confirm
           <>
             <ActivityIndicator size="large" color={color.acento} />
             <T v="titulo" centro>
-              Confirmando tu pago…
+              {tx('Confirmando tu pago…')}
             </T>
             <T c="texto2" centro style={{ maxWidth: 300 }}>
-              {lento ? 'Está tardando más de lo normal. No te preocupes: en cuanto se confirme verás tus entradas en la app.' : 'Solo tardará unos segundos.'}
+              {lento ? tx('Está tardando más de lo normal. No te preocupes: en cuanto se confirme verás tus entradas en la app.') : tx('Solo tardará unos segundos.')}
             </T>
           </>
         )}
@@ -73,15 +74,15 @@ export function ConfirmacionScreen({ navigation, route }: PropsPantalla<'Confirm
           deshabilitado={!pagado && !lento}
           onPress={() => navigation.reset({ index: 0, routes: [{ name: 'Pestanas', params: { screen: 'Entradas' } }] })}
         >
-          Ver mis entradas
+          {tx('Ver mis entradas')}
         </Boton>
         {pagado && (
           <Boton v="secundario" icono="calendar-outline" onPress={() => void anadirAlCalendario(pedido.evento.id)}>
-            Añadir al calendario
+            {tx('Añadir al calendario')}
           </Boton>
         )}
         <Boton v="fantasma" onPress={() => navigation.reset({ index: 0, routes: [{ name: 'Pestanas' }] })}>
-          Seguir explorando
+          {tx('Seguir explorando')}
         </Boton>
       </View>
     </View>

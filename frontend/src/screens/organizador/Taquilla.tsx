@@ -103,8 +103,8 @@ export function TaquillaScreen({ route }: PropsPantalla<'Taquilla'>) {
                 {ultima.entradas.every((e) => e.estado === 'usada') && <Insignia texto="Ya dentro" tono="acento" />}
               </Fila>
               {ultima.entradas.map((e) => (
-                <Fila key={e.id} style={{ justifyContent: 'space-between' }}>
-                  <T c="texto2">
+                <Fila key={e.id} gap={espacio.m}>
+                  <T c="texto2" style={{ flex: 1 }} numberOfLines={1}>
                     {e.tramo.nombre}
                     {e.asiento ? ` · ${describirButacas([{ id: e.id, seccion: '', ...e.asiento }])}` : ''}
                   </T>

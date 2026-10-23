@@ -8,6 +8,7 @@ import { api } from '../../lib/api';
 import { useNotificaciones } from '../../lib/consultas';
 import { haceCuanto } from '../../lib/formato';
 import { color, espacio, radio } from '../../theme';
+import { traducir as tx } from '../../lib/i18n';
 
 const ICONOS: Record<string, NombreIcono> = {
   pedido: 'ticket',
@@ -34,7 +35,7 @@ export function NotificacionesScreen() {
   }, [data, qc]);
 
   return (
-    <Pantalla cabecera={<Cabecera titulo="Notificaciones" />} recargar={() => void refetch()} recargando={isRefetching}>
+    <Pantalla cabecera={<Cabecera titulo={tx('Notificaciones')} />} recargar={() => void refetch()} recargando={isRefetching}>
       {error ? (
         <ErrorEstado error={error} reintentar={() => void refetch()} />
       ) : isPending ? (
@@ -44,7 +45,7 @@ export function NotificacionesScreen() {
           ))}
         </View>
       ) : data.length === 0 ? (
-        <Vacio icono="notifications-off-outline" titulo="Todo al día" texto="Aquí te avisaremos de tus compras, transferencias y recordatorios." />
+        <Vacio icono="notifications-off-outline" titulo={tx('Todo al día')} texto={tx('Aquí te avisaremos de tus compras, transferencias y recordatorios.')} />
       ) : (
         <View style={{ gap: espacio.s }}>
           {data.map((n) => (

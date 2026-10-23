@@ -9,6 +9,7 @@ import { api, ErrorApi, mensajeDe } from '../../lib/api';
 import { invalidarYo } from '../../lib/consultas';
 import type { PropsPantalla } from '../../navigation/tipos';
 import { color, espacio } from '../../theme';
+import { traducir as tx } from '../../lib/i18n';
 
 export function TransferirScreen({ navigation, route }: PropsPantalla<'Transferir'>) {
   const { entradaId, titulo } = route.params;
@@ -25,7 +26,7 @@ export function TransferirScreen({ navigation, route }: PropsPantalla<'Transferi
     try {
       await api(`/entradas/${entradaId}/transferir`, { method: 'POST', body: { email: email.trim() } });
       await invalidarYo(qc);
-      avisar('Entrada enviada. Le avisaremos para que la acepte', 'exito');
+      avisar(tx('Entrada enviada. Le avisaremos para que la acepte'), 'exito');
       navigation.goBack();
     } catch (e) {
       if (e instanceof ErrorApi && e.status < 500) setError(e.message);
@@ -37,22 +38,22 @@ export function TransferirScreen({ navigation, route }: PropsPantalla<'Transferi
 
   return (
     <Pantalla
-      cabecera={<Cabecera titulo="Enviar entrada" cerrar />}
+      cabecera={<Cabecera titulo={tx('Enviar entrada')} cerrar />}
       pie={
         <Boton onPress={() => void enviar()} deshabilitado={!valido} cargando={enviando} icono="paper-plane">
-          Enviar entrada
+          {tx('Enviar entrada')}
         </Boton>
       }
     >
       <View style={{ gap: espacio.xl }}>
         <View style={{ gap: espacio.s }}>
-          <T v="titulo">¿A quién se la envías?</T>
+          <T v="titulo">{tx('¿A quién se la envías?')}</T>
           <T c="texto2">
             Tu entrada para <T v="cuerpoFuerte">{titulo}</T> pasará a su cuenta en cuanto la acepte.
           </T>
         </View>
         <Campo
-          etiqueta="Email de su cuenta en Kroos Master"
+          etiqueta={tx('Email de su cuenta en Kroos Master')}
           icono="mail-outline"
           value={email}
           onChangeText={(t) => {
@@ -60,7 +61,7 @@ export function TransferirScreen({ navigation, route }: PropsPantalla<'Transferi
             setError(null);
           }}
           error={error}
-          placeholder="amiga@email.com"
+          placeholder={tx('amiga@email.com')}
           keyboardType="email-address"
           autoCapitalize="none"
           autoCorrect={false}
@@ -70,7 +71,7 @@ export function TransferirScreen({ navigation, route }: PropsPantalla<'Transferi
         <Fila gap={espacio.m} style={{ alignItems: 'flex-start' }}>
           <Icono n="shield-checkmark-outline" c={color.acento} />
           <T v="nota" c="texto2" style={{ flex: 1 }}>
-            Al aceptarla se genera un QR nuevo y el tuyo deja de funcionar. Puedes cancelar el envío mientras esté pendiente.
+            {tx('Al aceptarla se genera un QR nuevo y el tuyo deja de funcionar. Puedes cancelar el envío mientras esté pendiente.')}
           </T>
         </Fila>
       </View>

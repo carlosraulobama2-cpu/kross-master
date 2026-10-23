@@ -4,6 +4,7 @@ import { RefreshControl, ScrollView, StyleSheet, View, type ScrollViewProps } fr
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { color, espacio } from '../theme';
 import { BotonIcono, T } from './base';
+import { traducir as tx } from '../lib/i18n';
 
 /** Cabecera estándar: atrás, título y acciones a la derecha. */
 export function Cabecera({ titulo, derecha, sinAtras, cerrar }: { titulo?: string; derecha?: ReactNode; sinAtras?: boolean; cerrar?: boolean }) {
@@ -13,7 +14,7 @@ export function Cabecera({ titulo, derecha, sinAtras, cerrar }: { titulo?: strin
     <View style={[s.cabecera, { paddingTop: insets.top + espacio.s }]}>
       <View style={s.lado}>
         {!sinAtras && nav.canGoBack() && (
-          <BotonIcono n={cerrar ? 'close' : 'chevron-back'} etiqueta={cerrar ? 'Cerrar' : 'Atrás'} onPress={() => nav.goBack()} />
+          <BotonIcono n={cerrar ? 'close' : 'chevron-back'} etiqueta={cerrar ? tx('Cerrar') : tx('Atrás')} onPress={() => nav.goBack()} />
         )}
       </View>
       {titulo ? (

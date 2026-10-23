@@ -9,6 +9,7 @@ import { plural } from '../../lib/formato';
 import type { PropsPantalla } from '../../navigation/tipos';
 import { espacio, radio } from '../../theme';
 import { AntesDeIr } from './Evento';
+import { traducir as tx } from '../../lib/i18n';
 
 export function RecintoScreen({ navigation, route }: PropsPantalla<'Recinto'>) {
   const { data: r, error, refetch, isRefetching } = useRecinto(route.params.id);
@@ -40,12 +41,12 @@ export function RecintoScreen({ navigation, route }: PropsPantalla<'Recinto'>) {
             <BotonSeguir tipo="recintos" id={r.id} siguiendo={r.siguiendo} />
           </Fila>
           <Boton v="secundario" icono="navigate" onPress={abrirMapa} style={{ marginTop: espacio.l }}>
-            Cómo llegar
+            {tx('Cómo llegar')}
           </Boton>
           <AntesDeIr evento={{ recinto_info: r, puertas_abren_en: null }} />
-          <TituloSeccion titulo="Próximos eventos" />
+          <TituloSeccion titulo={tx('Próximos eventos')} />
           {r.eventos.length === 0 ? (
-            <Vacio icono="calendar-outline" titulo="No hay eventos anunciados" texto="Síguelo para enterarte el primero." />
+            <Vacio icono="calendar-outline" titulo={tx('No hay eventos anunciados')} texto={tx('Síguelo para enterarte el primero.')} />
           ) : (
             r.eventos.map((e) => <FilaEvento key={e.id} evento={e} onPress={() => navigation.push('Evento', { id: e.id })} />)
           )}

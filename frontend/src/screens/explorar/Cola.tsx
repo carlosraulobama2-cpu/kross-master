@@ -9,6 +9,7 @@ import { hora } from '../../lib/formato';
 import { haptica } from '../../lib/haptica';
 import type { PropsPantalla } from '../../navigation/tipos';
 import { color, espacio, radio } from '../../theme';
+import { traducir as tx } from '../../lib/i18n';
 
 /** Sala de espera de la cola virtual: se actualiza sola cada 5 s. */
 export function ColaScreen({ navigation, route }: PropsPantalla<'Cola'>) {
@@ -37,7 +38,7 @@ export function ColaScreen({ navigation, route }: PropsPantalla<'Cola'>) {
 
   return (
     <View style={{ flex: 1, backgroundColor: color.fondo }}>
-      <Cabecera titulo="Sala de espera" />
+      <Cabecera titulo={tx('Sala de espera')} />
       <View style={s.centro}>
         <View style={s.anillo}>
           {!admitido && (
@@ -53,11 +54,11 @@ export function ColaScreen({ navigation, route }: PropsPantalla<'Cola'>) {
               <Icono n="checkmark" tam={64} c={color.acentoTexto} />
             ) : (
               <>
-                <T v="display" style={{ fontSize: 44, lineHeight: 50 }} accessibilityLabel={`${cola?.por_delante ?? 0} personas delante`}>
+                <T v="display" style={{ fontSize: 44, lineHeight: 50 }} accessibilityLabel={tx('{0} personas delante', { 0: cola?.por_delante ?? 0 })}>
                   {cola?.por_delante ?? '…'}
                 </T>
                 <T v="nota" c="texto2">
-                  delante de ti
+                  {tx('delante de ti')}
                 </T>
               </>
             )}
@@ -65,20 +66,20 @@ export function ColaScreen({ navigation, route }: PropsPantalla<'Cola'>) {
         </View>
 
         <T v="titulo" centro style={{ marginTop: espacio.xxl }}>
-          {admitido ? '¡Es tu turno!' : 'Estás en la cola'}
+          {admitido ? tx('¡Es tu turno!') : tx('Estás en la cola')}
         </T>
         <T c="texto2" centro style={{ maxWidth: 320 }}>
           {admitido
-            ? `Tienes hasta las ${cola?.expira_en ? hora(cola.expira_en) : '—'} para comprar tus entradas de ${titulo}.`
-            : `Hay mucha gente queriendo entradas para ${titulo}. Te daremos paso por orden de llegada: espera aproximada ${cola?.minutos_estimados ?? 1} min.`}
+            ? tx('Tienes hasta las {0} para comprar tus entradas de {1}.', { 0: cola?.expira_en ? hora(cola.expira_en) : '—', 1: titulo })
+            : tx('Hay mucha gente queriendo entradas para {0}. Te daremos paso por orden de llegada: espera aproximada {1} min.', { 0: titulo, 1: cola?.minutos_estimados ?? 1 })}
         </T>
 
         {!admitido && (
           <View style={s.consejos}>
             {[
-              ['phone-portrait-outline', 'Puedes salir de esta pantalla: guardamos tu puesto'],
-              ['refresh-outline', 'No hace falta recargar, se actualiza sola'],
-              ['notifications-outline', 'Entrar varias veces no te adelanta'],
+              ['phone-portrait-outline', tx('Puedes salir de esta pantalla: guardamos tu puesto')],
+              ['refresh-outline', tx('No hace falta recargar, se actualiza sola')],
+              ['notifications-outline', tx('Entrar varias veces no te adelanta')],
             ].map(([icono, texto]) => (
               <Fila key={texto} gap={espacio.m}>
                 <Icono n={icono as 'refresh-outline'} tam={18} c={color.texto3} />
@@ -92,7 +93,7 @@ export function ColaScreen({ navigation, route }: PropsPantalla<'Cola'>) {
       </View>
       <View style={{ padding: espacio.xl, paddingBottom: insets.bottom + espacio.l }}>
         <Boton icono={admitido ? 'ticket' : 'arrow-back'} v={admitido ? 'primario' : 'secundario'} onPress={() => navigation.goBack()}>
-          {admitido ? 'Elegir mis entradas' : 'Volver al evento'}
+          {admitido ? tx('Elegir mis entradas') : tx('Volver al evento')}
         </Boton>
       </View>
     </View>

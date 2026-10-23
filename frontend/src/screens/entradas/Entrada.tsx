@@ -16,11 +16,12 @@ import { confirmar } from '../../lib/confirmar';
 import { useAviso } from '../../components/aviso';
 import { useQueryClient } from '@tanstack/react-query';
 import * as WebBrowser from 'expo-web-browser';
-import { fechaLarga, hora, precioExacto } from '../../lib/formato';
+import { fechaFrase, fechaLarga, hora, precioExacto } from '../../lib/formato';
 import { PERIODO_QR, segundosParaRotar, tokenQr } from '../../lib/qr';
 import type { Entrada } from '../../lib/tipos';
 import type { PropsPantalla } from '../../navigation/tipos';
 import { color, espacio, radio } from '../../theme';
+import { traducir as tx } from '../../lib/i18n';
 
 /** Sube el brillo al máximo mientras se enseña el QR y lo restaura al salir. */
 function useBrilloMaximo() {
@@ -93,20 +94,20 @@ function TarjetaQr({ entrada, ancho, onTransferir, onRevender, onRetirar }: { en
           )}
           {(entrada.es_acompanante || entrada.tramo.accesible) && (
             <View style={{ marginTop: 4 }}>
-              <Insignia texto={entrada.es_acompanante ? 'Acompañante' : 'Accesible'} tono="info" icono="accessibility" />
+              <Insignia texto={entrada.es_acompanante ? tx('Acompañante') : tx('Accesible')} tono="info" icono="accessibility" />
             </View>
           )}
         </View>
       </Fila>
 
-      <View style={[s.qrCaja, { width: tamQr + 32, height: tamQr + 32 }]} accessibilityLabel="Código QR de la entrada. Enséñalo en la puerta.">
+      <View style={[s.qrCaja, { width: tamQr + 32, height: tamQr + 32 }]} accessibilityLabel={tx('Código QR de la entrada. Enséñalo en la puerta.')}>
         {token && valida ? (
           <QRCode value={token} size={tamQr} backgroundColor="#FFFFFF" color="#0B0B10" ecl="M" />
         ) : (
           <View style={[s.qrEstado, { width: tamQr, height: tamQr }]}>
             <Icono n={valida ? 'cloud-offline' : MENSAJE_ESTADO[entrada.estado as keyof typeof MENSAJE_ESTADO].icono} tam={48} c="#6B6B80" />
             <T v="cabecera" style={{ color: '#0B0B10' }} centro>
-              {valida ? 'QR no disponible' : MENSAJE_ESTADO[entrada.estado as keyof typeof MENSAJE_ESTADO].texto}
+              {valida ? tx('QR no disponible') : tx(MENSAJE_ESTADO[entrada.estado as keyof typeof MENSAJE_ESTADO].texto)}
             </T>
             {entrada.usada_en && (
               <T v="nota" style={{ color: '#55556A' }}>
@@ -126,7 +127,7 @@ function TarjetaQr({ entrada, ancho, onTransferir, onRevender, onRetirar }: { en
             <Fila gap={4}>
               <Icono n="shield-checkmark" tam={14} c={color.acento} />
               <T v="nota" c="texto2">
-                QR dinámico · funciona sin conexión
+                {tx('QR dinámico · funciona sin conexión')}
               </T>
             </Fila>
             <T v="nota" c="texto3" style={{ fontVariant: ['tabular-nums'] }}>
@@ -136,9 +137,9 @@ function TarjetaQr({ entrada, ancho, onTransferir, onRevender, onRetirar }: { en
         </View>
       )}
 
-      <Pulsable onPress={() => setVerCodigo((v) => !v)} style={s.codigo} escala={0.98} accessibilityLabel={verCodigo ? 'Ocultar código' : 'Mostrar código manual'}>
+      <Pulsable onPress={() => setVerCodigo((v) => !v)} style={s.codigo} escala={0.98} accessibilityLabel={verCodigo ? tx('Ocultar código') : tx('Mostrar código manual')}>
         <T v="mini" c="texto3">
-          Código manual
+          {tx('Código manual')}
         </T>
         <T v="cabecera" style={{ letterSpacing: 2, fontVariant: ['tabular-nums'] }}>
           {verCodigo ? entrada.codigo : 'KM-••••-••••'}
@@ -152,17 +153,17 @@ function TarjetaQr({ entrada, ancho, onTransferir, onRevender, onRetirar }: { en
           <Fila gap={6}>
             <Icono n="time-outline" tam={16} c={color.aviso} />
             <T v="nota" c="aviso">
-              Transferencia pendiente de aceptar
+              {tx('Transferencia pendiente de aceptar')}
             </T>
           </Fila>
         ) : (
           <Fila gap={espacio.s} style={{ alignSelf: 'stretch' }}>
             <Boton v="secundario" icono="paper-plane-outline" onPress={onTransferir} style={{ flex: 1 }}>
-              Enviar
+              {tx('Enviar')}
             </Boton>
             {!entrada.es_acompanante && (
               <Boton v="secundario" icono="pricetag-outline" onPress={onRevender} style={{ flex: 1 }}>
-                Revender
+                {tx('Revender')}
               </Boton>
             )}
           </Fila>
@@ -171,10 +172,10 @@ function TarjetaQr({ entrada, ancho, onTransferir, onRevender, onRetirar }: { en
       {entrada.estado === 'en_venta' && (
         <View style={{ alignSelf: 'stretch', gap: espacio.s }}>
           <T v="nota" c="texto2" centro>
-            Si alguien la compra te devolvemos {precioExacto(entrada.reventas.find((r) => r.estado === 'activa')?.precio_centimos ?? 0)} a tu tarjeta y esta entrada dejará de ser tuya.
+            {tx('Si alguien la compra te devolvemos {0} a tu tarjeta y esta entrada dejará de ser tuya.', { 0: precioExacto(entrada.reventas.find((r) => r.estado === 'activa')?.precio_centimos ?? 0) })}
           </T>
           <Boton v="secundario" icono="arrow-undo-outline" onPress={onRetirar}>
-            Retirar de la reventa
+            {tx('Retirar de la reventa')}
           </Boton>
         </View>
       )}
@@ -203,7 +204,7 @@ export function EntradaScreen({ navigation, route }: PropsPantalla<'Entrada'>) {
     if (!ok) return;
     try {
       await api(`/entradas/${e.id}/reventa`, { method: 'POST' });
-      avisar('Entrada puesta en reventa', 'exito');
+      avisar(tx('Entrada puesta en reventa'), 'exito');
       await invalidarYo(qc);
     } catch (err) {
       avisar(mensajeDe(err), 'error');
@@ -213,7 +214,7 @@ export function EntradaScreen({ navigation, route }: PropsPantalla<'Entrada'>) {
   async function retirar(e: Entrada) {
     try {
       await api(`/entradas/${e.id}/reventa`, { method: 'DELETE' });
-      avisar('Entrada retirada de la reventa. Ya vuelve a ser válida', 'exito');
+      avisar(tx('Entrada retirada de la reventa. Ya vuelve a ser válida'), 'exito');
       await invalidarYo(qc);
     } catch (err) {
       avisar(mensajeDe(err), 'error');
@@ -227,7 +228,7 @@ export function EntradaScreen({ navigation, route }: PropsPantalla<'Entrada'>) {
   if (error) {
     return (
       <View style={{ flex: 1, backgroundColor: color.fondo }}>
-        <Cabecera titulo="Entrada" />
+        <Cabecera titulo={tx('Entrada')} />
         <ErrorEstado error={error} reintentar={() => void refetch()} />
       </View>
     );
@@ -241,7 +242,7 @@ export function EntradaScreen({ navigation, route }: PropsPantalla<'Entrada'>) {
 
   return (
     <View style={{ flex: 1, backgroundColor: color.fondo }}>
-      <Cabecera titulo={delEvento.length > 1 ? `Entrada ${indice + 1} de ${delEvento.length}` : 'Tu entrada'} />
+      <Cabecera titulo={delEvento.length > 1 ? `Entrada ${indice + 1} de ${delEvento.length}` : tx('Tu entrada')} />
       {!actual ? (
         <View style={{ padding: espacio.xl }}>
           <Esqueleto alto={560} r={radio.xxl} />
@@ -286,7 +287,7 @@ export function EntradaScreen({ navigation, route }: PropsPantalla<'Entrada'>) {
               </T>
               {actual.evento.fecha_original && (
                 <T v="nota" c="aviso">
-                  Aplazado · antes {fechaLarga(actual.evento.fecha_original)}
+                  {tx('Aplazado · antes {0}', { 0: fechaFrase(actual.evento.fecha_original) })}
                 </T>
               )}
             </View>
@@ -294,10 +295,10 @@ export function EntradaScreen({ navigation, route }: PropsPantalla<'Entrada'>) {
           </Pulsable>
           <Fila gap={espacio.s} style={{ justifyContent: 'center' }}>
             <Boton v="fantasma" pequeno bloque={false} icono="calendar-outline" onPress={() => void anadirAlCalendario(actual.evento.id)}>
-              Añadir al calendario
+              {tx('Añadir al calendario')}
             </Boton>
             <Boton v="fantasma" pequeno bloque={false} icono="information-circle-outline" onPress={() => navigation.navigate('Evento', { id: actual.evento.id })}>
-              Info del evento
+              {tx('Info del evento')}
             </Boton>
           </Fila>
         </>
@@ -328,18 +329,18 @@ function BotonesWallet({ entradaId }: { entradaId: string }) {
   return (
     <View style={{ alignSelf: 'stretch', gap: espacio.s }}>
       {apple && (
-        <Pulsable onPress={() => void WebBrowser.openBrowserAsync(apple)} style={s.wallet} accessibilityLabel="Añadir a Apple Wallet">
+        <Pulsable onPress={() => void WebBrowser.openBrowserAsync(apple)} style={s.wallet} accessibilityLabel={tx('Añadir a Apple Wallet')}>
           <Icono n="logo-apple" c="#FFFFFF" />
           <T v="cuerpoFuerte" style={{ color: '#FFFFFF' }}>
-            Añadir a Apple Wallet
+            {tx('Añadir a Apple Wallet')}
           </T>
         </Pulsable>
       )}
       {google && (
-        <Pulsable onPress={() => void WebBrowser.openBrowserAsync(google)} style={s.wallet} accessibilityLabel="Guardar en Google Wallet">
+        <Pulsable onPress={() => void WebBrowser.openBrowserAsync(google)} style={s.wallet} accessibilityLabel={tx('Guardar en Google Wallet')}>
           <Icono n="logo-google" c="#FFFFFF" />
           <T v="cuerpoFuerte" style={{ color: '#FFFFFF' }}>
-            Guardar en Google Wallet
+            {tx('Guardar en Google Wallet')}
           </T>
         </Pulsable>
       )}

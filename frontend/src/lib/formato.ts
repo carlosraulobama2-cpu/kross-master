@@ -23,6 +23,9 @@ export const diaCorto = (iso: string) => {
 export const fechaLarga = (iso: string) =>
   capitalizar(new Date(iso).toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'long' }));
 
+/** Fecha larga para usar dentro de una frase (sin mayúscula inicial en español y catalán). */
+export const fechaFrase = (iso: string) => new Date(iso).toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'long' });
+
 export const fechaMedia = (iso: string) =>
   capitalizar(new Date(iso).toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, ''));
 

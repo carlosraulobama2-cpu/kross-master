@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router';
 import { useAuth } from '../lib/auth';
-import { IconoAjustes, IconoAuditoria, IconoEventos, IconoMenu, IconoPedidos, IconoReembolso, IconoResumen, IconoSalir, IconoUsuarios } from './iconos';
+import { IconoAjustes, IconoAuditoria, IconoAyuda, IconoSoporte, IconoEventos, IconoMenu, IconoPedidos, IconoReembolso, IconoResumen, IconoSalir, IconoUsuarios } from './iconos';
 import { Boton } from './ui';
 
 const SECCIONES = [
@@ -9,6 +9,8 @@ const SECCIONES = [
   { a: '/eventos', etiqueta: 'Eventos', icono: IconoEventos },
   { a: '/pedidos', etiqueta: 'Pedidos', icono: IconoPedidos },
   { a: '/reclamaciones', etiqueta: 'Reclamaciones', icono: IconoReembolso },
+  { a: '/soporte', etiqueta: 'Soporte', icono: IconoSoporte },
+  { a: '/ayuda', etiqueta: 'Preguntas frecuentes', icono: IconoAyuda },
   { a: '/usuarios', etiqueta: 'Usuarios', icono: IconoUsuarios },
   { a: '/auditoria', etiqueta: 'Auditoría', icono: IconoAuditoria },
   { a: '/ajustes', etiqueta: 'Ajustes', icono: IconoAjustes },

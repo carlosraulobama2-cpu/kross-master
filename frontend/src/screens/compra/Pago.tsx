@@ -12,6 +12,8 @@ import { cuandoEs, mmss, precioExacto } from '../../lib/formato';
 import { usePasarela } from '../../lib/pasarela';
 import type { PropsPantalla } from '../../navigation/tipos';
 import { color, espacio, radio } from '../../theme';
+import { traducir as tx } from '../../lib/i18n';
+import { describirButacas } from '../../components/plano';
 
 function useSegundosHasta(iso?: string) {
   const calcular = () => (iso ? Math.max(0, Math.round((new Date(iso).getTime() - Date.now()) / 1000)) : 0);
@@ -57,15 +59,15 @@ export function PagoScreen({ navigation, route }: PropsPantalla<'Pago'>) {
 
   return (
     <Pantalla
-      cabecera={<Cabecera titulo="Confirmar compra" />}
+      cabecera={<Cabecera titulo={tx('Confirmar compra')} />}
       pie={
         pedido && !caducado ? (
           <View style={{ gap: espacio.s }}>
             <Boton onPress={() => void onPagar()} cargando={pagando} icono="lock-closed">
-              Pagar {precioExacto(pedido.total_centimos)}
+              {tx('Pagar {0}', { 0: precioExacto(pedido.total_centimos) })}
             </Boton>
             <T v="nota" c="texto3" centro>
-              Pago seguro con Stripe · Tarjeta, Apple Pay o Google Pay
+              {tx('Pago seguro con Stripe · Tarjeta, Apple Pay o Google Pay')}
             </T>
           </View>
         ) : undefined
@@ -81,18 +83,18 @@ export function PagoScreen({ navigation, route }: PropsPantalla<'Pago'>) {
       ) : caducado ? (
         <Vacio
           icono="time-outline"
-          titulo="Se acabó el tiempo"
-          texto="Hemos liberado las entradas para que otras personas puedan comprarlas. Puedes volver a intentarlo."
-          accion={<Boton onPress={() => navigation.replace('Evento', { id: pedido.evento.id })}>Volver al evento</Boton>}
+          titulo={tx('Se acabó el tiempo')}
+          texto={tx('Hemos liberado las entradas para que otras personas puedan comprarlas. Puedes volver a intentarlo.')}
+          accion={<Boton onPress={() => navigation.replace('Evento', { id: pedido.evento.id })}>{tx('Volver al evento')}</Boton>}
         />
       ) : (
         <>
           <View style={[s.reloj, urgente && { backgroundColor: color.avisoSuave, borderColor: color.aviso }]}>
             <Icono n="timer-outline" c={urgente ? color.aviso : color.acento} />
             <T v="cuerpoFuerte" style={{ flex: 1 }}>
-              Te guardamos las entradas
+              {tx('Te guardamos las entradas')}
             </T>
-            <T v="cabecera" c={urgente ? 'aviso' : 'acento'} style={{ fontVariant: ['tabular-nums'] }} accessibilityLabel={`Quedan ${mmss(restantes)} minutos`}>
+            <T v="cabecera" c={urgente ? 'aviso' : 'acento'} style={{ fontVariant: ['tabular-nums'] }} accessibilityLabel={tx('Quedan {0} minutos', { 0: mmss(restantes) })}>
               {mmss(restantes)}
             </T>
           </View>
@@ -105,7 +107,7 @@ export function PagoScreen({ navigation, route }: PropsPantalla<'Pago'>) {
               </T>
               {pedido.es_reventa && (
                 <T v="nota" c="info">
-                  Reventa oficial · precio original
+                  {tx('Reventa oficial · precio original')}
                 </T>
               )}
               <T v="nota" c="texto2">
@@ -126,27 +128,40 @@ export function PagoScreen({ navigation, route }: PropsPantalla<'Pago'>) {
                 <T v="cuerpoFuerte">{precioExacto(i.cantidad * i.precio_unitario_centimos)}</T>
               </Fila>
             ))}
+            {pedido.asientos?.length > 0 && (
+              <T v="nota" c="acento" style={{ fontWeight: '700', marginTop: -4 }}>
+                {describirButacas(pedido.asientos.map((a, k) => ({ id: String(k), ...a })), tx)}
+              </T>
+            )}
+            {pedido.extras?.map((x) => (
+              <Fila key={x.extra.id} style={{ justifyContent: 'space-between' }}>
+                <T c="texto2">
+                  {x.cantidad} × {x.extra.nombre}
+                </T>
+                <T v="cuerpoFuerte">{precioExacto(x.cantidad * x.precio_unitario_centimos)}</T>
+              </Fila>
+            ))}
             {pedido.descuento_centimos > 0 && (
               <Fila style={{ justifyContent: 'space-between' }}>
-                <T c="acento">Descuento</T>
+                <T c="acento">{tx('Descuento')}</T>
                 <T v="cuerpoFuerte" c="acento">
-                  −{precioExacto(pedido.descuento_centimos)}
+                  {tx('−{0}', { 0: precioExacto(pedido.descuento_centimos) })}
                 </T>
               </Fila>
             )}
             <Fila style={{ justifyContent: 'space-between' }}>
-              <T c="texto2">Gastos de gestión</T>
+              <T c="texto2">{tx('Gastos de gestión')}</T>
               <T v="cuerpoFuerte">{precioExacto(pedido.gastos_centimos)}</T>
             </Fila>
             {pedido.seguro_centimos > 0 && (
               <Fila style={{ justifyContent: 'space-between' }}>
-                <T c="texto2">Protección de reembolso</T>
+                <T c="texto2">{tx('Protección de reembolso')}</T>
                 <T v="cuerpoFuerte">{precioExacto(pedido.seguro_centimos)}</T>
               </Fila>
             )}
             <Separador m={espacio.xs} />
             <Fila style={{ justifyContent: 'space-between' }}>
-              <T v="cabecera">Total</T>
+              <T v="cabecera">{tx('Total')}</T>
               <T v="subtitulo">{precioExacto(pedido.total_centimos)}</T>
             </Fila>
           </View>
@@ -154,11 +169,11 @@ export function PagoScreen({ navigation, route }: PropsPantalla<'Pago'>) {
           <Fila gap={espacio.m} style={{ marginTop: espacio.xl, alignItems: 'flex-start' }}>
             <Icono n="information-circle-outline" c={color.texto3} />
             <T v="nota" c="texto3" style={{ flex: 1 }}>
-              Recibirás las entradas en la app nada más pagar. Al comprar aceptas los términos de uso y la política de devoluciones del organizador.
+              {tx('Recibirás las entradas en la app nada más pagar. Al comprar aceptas los términos de uso y la política de devoluciones del organizador.')}
             </T>
           </Fila>
           <Boton v="fantasma" onPress={() => void cancelar()} style={{ marginTop: espacio.l }}>
-            Cancelar y liberar entradas
+            {tx('Cancelar y liberar entradas')}
           </Boton>
         </>
       )}

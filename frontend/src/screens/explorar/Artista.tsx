@@ -9,6 +9,7 @@ import { useArtista } from '../../lib/consultas';
 import { plural } from '../../lib/formato';
 import type { PropsPantalla } from '../../navigation/tipos';
 import { color, espacio, radio } from '../../theme';
+import { traducir as tx } from '../../lib/i18n';
 
 export function ArtistaScreen({ navigation, route }: PropsPantalla<'Artista'>) {
   const { data: a, error, refetch, isRefetching } = useArtista(route.params.id);
@@ -47,9 +48,9 @@ export function ArtistaScreen({ navigation, route }: PropsPantalla<'Artista'>) {
               {a.bio}
             </T>
           )}
-          <TituloSeccion titulo="Próximas fechas" />
+          <TituloSeccion titulo={tx('Próximas fechas')} />
           {a.eventos.length === 0 ? (
-            <Vacio icono="calendar-outline" titulo="Sin fechas por ahora" texto="Síguelo y te avisaremos en cuanto anuncie conciertos." />
+            <Vacio icono="calendar-outline" titulo={tx('Sin fechas por ahora')} texto={tx('Síguelo y te avisaremos en cuanto anuncie conciertos.')} />
           ) : (
             a.eventos.map((e) => <FilaEvento key={e.id} evento={e} onPress={() => navigation.push('Evento', { id: e.id })} />)
           )}

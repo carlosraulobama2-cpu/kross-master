@@ -12,6 +12,7 @@ import * as Location from 'expo-location';
 import { useAviso } from '../../components/aviso';
 import type { PropsPestana } from '../../navigation/tipos';
 import { CATEGORIAS, color, espacio, radio } from '../../theme';
+import { traducir as tx } from '../../lib/i18n';
 
 const CLAVE_CIUDAD = 'km.ciudad';
 
@@ -25,7 +26,7 @@ function finDeSemana(): string {
 
 function saludo(): string {
   const h = new Date().getHours();
-  return h < 6 ? 'Buenas noches' : h < 13 ? 'Buenos días' : h < 21 ? 'Buenas tardes' : 'Buenas noches';
+  return h < 6 ? tx('Buenas noches') : h < 13 ? tx('Buenos días') : h < 21 ? tx('Buenas tardes') : tx('Buenas noches');
 }
 
 export function ExplorarScreen({ navigation }: PropsPestana<'Explorar'>) {
@@ -53,14 +54,14 @@ export function ExplorarScreen({ navigation }: PropsPestana<'Explorar'>) {
     try {
       const permiso = await Location.requestForegroundPermissionsAsync();
       if (!permiso.granted) {
-        avisar('Necesitamos tu ubicación para mostrarte planes cerca', 'info');
+        avisar(tx('Necesitamos tu ubicación para mostrarte planes cerca'), 'info');
         return;
       }
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       setUbicacion({ lat: pos.coords.latitude, lng: pos.coords.longitude });
       setCiudad(undefined);
     } catch {
-      avisar('No hemos podido obtener tu ubicación', 'error');
+      avisar(tx('No hemos podido obtener tu ubicación'), 'error');
     }
   }
 
@@ -107,13 +108,13 @@ export function ExplorarScreen({ navigation }: PropsPestana<'Explorar'>) {
               {saludo()}
               {usuario?.nombre ? `, ${usuario.nombre.split(' ')[0]}` : ''} 👋
             </T>
-            <Pulsable onPress={() => setEligiendoCiudad(true)} style={s.ciudad} accessibilityLabel="Cambiar ciudad" escala={0.98}>
-              <T v="titulo">{ubicacion ? 'Cerca de ti' : (ciudad ?? 'Toda España')}</T>
+            <Pulsable onPress={() => setEligiendoCiudad(true)} style={s.ciudad} accessibilityLabel={tx('Cambiar ciudad')} escala={0.98}>
+              <T v="titulo">{ubicacion ? tx('Cerca de ti') : (ciudad ?? tx('Toda España'))}</T>
               <Icono n="chevron-down" tam={20} c={color.acento} />
             </Pulsable>
           </View>
           <View>
-            <BotonIcono n="notifications-outline" etiqueta="Notificaciones" onPress={() => navigation.navigate(usuario ? 'Notificaciones' : 'Acceso')} />
+            <BotonIcono n="notifications-outline" etiqueta={tx('Notificaciones')} onPress={() => navigation.navigate(usuario ? 'Notificaciones' : 'Acceso')} />
             {sinLeer > 0 && (
               <View style={s.badge}>
                 <T v="mini" c="acentoTexto" style={{ fontSize: 10, letterSpacing: 0 }}>
@@ -125,15 +126,15 @@ export function ExplorarScreen({ navigation }: PropsPestana<'Explorar'>) {
         </View>
 
         {/* Buscador */}
-        <Pulsable onPress={() => navigation.navigate('Buscar')} style={s.buscador} escala={0.98} accessibilityLabel="Buscar eventos">
+        <Pulsable onPress={() => navigation.navigate('Buscar')} style={s.buscador} escala={0.98} accessibilityLabel={tx('Buscar eventos')}>
           <Icono n="search" tam={20} c={color.texto3} />
-          <T c="texto3">Artistas, salas, festivales…</T>
+          <T c="texto3">{tx('Artistas, salas, festivales…')}</T>
         </Pulsable>
 
         {/* Categorías */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.carrilChips}>
           {CATEGORIAS.map((c) => (
-            <Chip key={c.id} texto={c.nombre} icono={c.icono} onPress={() => navigation.navigate('Buscar', { categoria: c.id })} />
+            <Chip key={c.id} texto={tx(c.nombre)} icono={c.icono} onPress={() => navigation.navigate('Buscar', { categoria: c.id })} />
           ))}
         </ScrollView>
 
@@ -145,7 +146,7 @@ export function ExplorarScreen({ navigation }: PropsPestana<'Explorar'>) {
             {(destacados.isPending || listaDestacados.length > 0) && (
               <>
                 <View style={s.margen}>
-                  <TituloSeccion titulo="No te lo pierdas" />
+                  <TituloSeccion titulo={tx('No te lo pierdas')} />
                 </View>
                 {destacados.isPending ? (
                   <View style={s.margen}>
@@ -181,7 +182,7 @@ export function ExplorarScreen({ navigation }: PropsPestana<'Explorar'>) {
             {(paraTi?.length ?? 0) > 0 && !ubicacion && !ciudad && (
               <>
                 <View style={s.margen}>
-                  <TituloSeccion titulo="Para ti" />
+                  <TituloSeccion titulo={tx('Para ti')} />
                 </View>
                 <FlatList
                   horizontal
@@ -198,7 +199,7 @@ export function ExplorarScreen({ navigation }: PropsPestana<'Explorar'>) {
             {listaSemana.length > 0 && (
               <>
                 <View style={s.margen}>
-                  <TituloSeccion titulo="Esta semana" />
+                  <TituloSeccion titulo={tx('Esta semana')} />
                 </View>
                 <FlatList
                   horizontal
@@ -214,7 +215,7 @@ export function ExplorarScreen({ navigation }: PropsPestana<'Explorar'>) {
             {/* Próximos */}
             <View style={s.margen}>
               <TituloSeccion
-                titulo="Próximos eventos"
+                titulo={tx('Próximos eventos')}
               />
               {proximos.isPending ? (
                 Array.from({ length: 4 }, (_, i) => (
@@ -230,9 +231,9 @@ export function ExplorarScreen({ navigation }: PropsPestana<'Explorar'>) {
               ) : listaProximos.length === 0 ? (
                 <Vacio
                   icono="calendar-outline"
-                  titulo={ubicacion ? 'Nada cerca de ti por ahora' : ciudad ? `Nada en ${ciudad} por ahora` : 'Aún no hay eventos'}
-                  texto={ciudad ? 'Prueba con otra ciudad o mira todo lo que hay en España.' : 'Vuelve pronto: se publican eventos nuevos cada semana.'}
-                  accion={ciudad || ubicacion ? <Boton v="secundario" bloque={false} onPress={() => elegirCiudad(undefined)}>Ver toda España</Boton> : undefined}
+                  titulo={ubicacion ? tx('Nada cerca de ti por ahora') : ciudad ? tx('Nada en {0} por ahora', { 0: ciudad }) : tx('Aún no hay eventos')}
+                  texto={ciudad ? tx('Prueba con otra ciudad o mira todo lo que hay en España.') : tx('Vuelve pronto: se publican eventos nuevos cada semana.')}
+                  accion={ciudad || ubicacion ? <Boton v="secundario" bloque={false} onPress={() => elegirCiudad(undefined)}>{tx('Ver toda España')}</Boton> : undefined}
                 />
               ) : (
                 <>
@@ -241,7 +242,7 @@ export function ExplorarScreen({ navigation }: PropsPestana<'Explorar'>) {
                   ))}
                   {proximos.hasNextPage && (
                     <Boton v="secundario" cargando={proximos.isFetchingNextPage} onPress={() => void proximos.fetchNextPage()} style={{ marginTop: espacio.m }}>
-                      Ver más eventos
+                      {tx('Ver más eventos')}
                     </Boton>
                   )}
                 </>
@@ -262,16 +263,16 @@ function SelectorCiudad({ visible, actual, onElegir, onCerca, onCerrar }: { visi
   const opciones = [{ nombre: undefined as string | undefined, eventos: data?.reduce((a, c) => a + c.eventos, 0) ?? 0 }, ...(data ?? [])];
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onCerrar}>
-      <Pressable style={s.velo} onPress={onCerrar} accessibilityLabel="Cerrar" />
+      <Pressable style={s.velo} onPress={onCerrar} accessibilityLabel={tx('Cerrar')} />
       <View style={[s.hoja, { paddingBottom: insets.bottom + espacio.l }]}>
         <View style={s.asa} />
         <T v="subtitulo" style={{ marginBottom: espacio.m }}>
-          ¿Dónde buscas planes?
+          {tx('¿Dónde buscas planes?')}
         </T>
         <Pulsable onPress={onCerca} style={s.opcion} escala={0.98} accessibilityState={{ selected: actual === 'cerca' }}>
           <Icono n="navigate" c={color.acento} />
           <T v="cuerpoFuerte" c="acento" style={{ flex: 1 }}>
-            Cerca de mí
+            {tx('Cerca de mí')}
           </T>
           {actual === 'cerca' && <Icono n="checkmark" c={color.acento} />}
         </Pulsable>
@@ -281,7 +282,7 @@ function SelectorCiudad({ visible, actual, onElegir, onCerca, onCerrar }: { visi
             <Pulsable key={c.nombre ?? 'todas'} onPress={() => onElegir(c.nombre)} style={s.opcion} escala={0.98} accessibilityState={{ selected: activa }}>
               <Icono n={c.nombre ? 'location-outline' : 'globe-outline'} c={activa ? color.acento : color.texto2} />
               <T v="cuerpoFuerte" style={{ flex: 1 }}>
-                {c.nombre ?? 'Toda España'}
+                {c.nombre ?? tx('Toda España')}
               </T>
               <T v="nota" c="texto3">
                 {c.eventos}

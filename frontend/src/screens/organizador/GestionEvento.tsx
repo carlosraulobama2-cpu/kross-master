@@ -17,7 +17,7 @@ import { color, espacio, radio } from '../../theme';
 import * as WebBrowser from 'expo-web-browser';
 import { SelectorFecha } from '../../components/SelectorFecha';
 import { urlAbsoluta } from '../../lib/calendario';
-import { fechaLarga } from '../../lib/formato';
+import { fechaFrase } from '../../lib/formato';
 import { CodigosEvento } from './CodigosEvento';
 import { ExtrasEvento } from './ExtrasEvento';
 import { Demanda } from './Demanda';
@@ -205,8 +205,8 @@ export function GestionEventoScreen({ navigation, route }: PropsPantalla<'Gestio
       </T>
       {evento.fecha_original && (
         <T v="nota" c="aviso" style={{ marginTop: 4 }}>
-          Aplazado (era el {fechaLarga(evento.fecha_original)})
-          {evento.reembolso_aplazamiento_hasta ? ` · reembolsos hasta el ${fechaLarga(evento.reembolso_aplazamiento_hasta)}` : ''}
+          Aplazado (era el {fechaFrase(evento.fecha_original)})
+          {evento.reembolso_aplazamiento_hasta ? ` · reembolsos hasta el ${fechaFrase(evento.reembolso_aplazamiento_hasta)}` : ''}
         </T>
       )}
 
@@ -237,7 +237,7 @@ export function GestionEventoScreen({ navigation, route }: PropsPantalla<'Gestio
       <Fila gap={espacio.s} style={{ marginTop: espacio.l }}>
         {evento.estado === 'publicado' && <Accion icono="storefront-outline" texto="Taquilla" onPress={() => navigation.navigate('Taquilla', { eventoId: id })} />}
         {abierto && <Accion icono="gift-outline" texto="Invitar" onPress={() => navigation.navigate('Invitaciones', { eventoId: id })} />}
-        <Accion icono="download-outline" texto={ocupado === 'exportar' ? 'Abriendo…' : 'Exportar CSV'} onPress={() => void exportar()} />
+        <Accion icono="download-outline" texto={ocupado === 'exportar' ? 'Abriendo…' : 'Exportar'} onPress={() => void exportar()} />
         {evento.estado === 'publicado' && <Accion icono="calendar-outline" texto="Aplazar" onPress={() => setAplazando(true)} />}
       </Fila>
 
@@ -345,8 +345,8 @@ export function GestionEventoScreen({ navigation, route }: PropsPantalla<'Gestio
       <Modal visible={aplazando} transparent animationType="slide" onRequestClose={() => setAplazando(false)}>
         <Pressable style={{ flex: 1, backgroundColor: color.velo }} onPress={() => setAplazando(false)} />
         <View style={[s.hoja, { paddingBottom: insets.bottom + espacio.l }]}>
-          <T v="subtitulo">Aplazar «{evento.titulo}»</T>
-          <T c="texto2">Las entradas seguirán valiendo. Avisaremos a los asistentes y podrán pedir el reembolso durante el plazo que elijas.</T>
+          <T v="subtitulo">Aplazar evento</T>
+          <T c="texto2">{evento.titulo}: las entradas seguirán valiendo. Avisaremos a los asistentes y podrán pedir el reembolso durante el plazo que elijas.</T>
           <SelectorFecha etiqueta="Nueva fecha y hora" valor={nuevaFecha} onCambio={setNuevaFecha} minimo={new Date()} />
           <Fila style={{ justifyContent: 'space-between' }}>
             <T c="texto2">Días para pedir reembolso</T>

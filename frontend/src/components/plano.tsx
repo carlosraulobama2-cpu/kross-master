@@ -62,8 +62,8 @@ export function PlanoAsientos({
     return [...m.values()];
   }, [asientos]);
   const porFila = Math.max(1, ...filas.map((f) => f.length));
-  // Butacas tan grandes como quepan (máx. 30 px), con hueco para la letra de fila.
-  const lado = ancho ? Math.max(12, Math.min(30, Math.floor((ancho - 28) / porFila) - 4)) : 0;
+  // Butacas tan grandes como quepan (máx. 30 px), con hueco para la letra de fila (20 px + 4 de separación).
+  const lado = ancho ? Math.max(6, Math.min(30, Math.floor((ancho - 24) / porFila) - 4)) : 0;
   const elegidasIds = new Set(elegidas.map((b) => b.id));
 
   function tocar(a: Asiento) {
@@ -193,8 +193,8 @@ function Leyenda({ estilo, texto }: { estilo: object; texto: string }) {
 
 const s = StyleSheet.create({
   escenario: { alignSelf: 'center', width: '70%', paddingVertical: 6, alignItems: 'center', borderRadius: radio.total, backgroundColor: color.superficie2, borderWidth: 1, borderColor: color.borde },
-  butaca: { backgroundColor: color.superficie2, borderWidth: 1, borderColor: color.borde, alignItems: 'center', justifyContent: 'center' },
-  ocupada: { backgroundColor: color.superficie3, borderColor: color.superficie3, opacity: 0.45 },
+  butaca: { backgroundColor: color.superficie3, borderWidth: 1, borderColor: color.bordeFuerte, alignItems: 'center', justifyContent: 'center' },
+  ocupada: { backgroundColor: 'transparent', borderColor: color.borde, opacity: 0.5 },
   mia: { backgroundColor: color.acento, borderColor: color.acento },
   mejor: { flexDirection: 'row', alignItems: 'center', gap: espacio.m, padding: espacio.m, borderRadius: radio.m, backgroundColor: color.superficie2 },
 });

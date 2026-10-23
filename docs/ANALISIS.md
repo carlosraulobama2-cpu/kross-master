@@ -239,7 +239,69 @@ App ── GET /api/pedidos/:id (polling) ──▶ "pagado" + entradas
 | Migración de datos | El esquema v2 es nuevo: si había datos en el proyecto antiguo, hay que migrarlos o empezar en limpio. |
 | Subida de imágenes | Hoy la imagen del evento es una URL. Falta subida a Supabase Storage desde la app. |
 | Reseñas en la app | La API ya las admite (solo asistentes, tras el evento); falta la pantalla. |
-| Recordatorios | El servicio de push existe; falta el aviso automático 24 h antes del evento. |
-| Facturas | No hay generación de factura/recibo en PDF. |
-| Wallet | Añadir entradas a Apple Wallet / Google Wallet. |
+| Wallet en dispositivo | Hecho en la tanda 2, pero hacen falta los certificados de Apple y la cuenta de servicio de Google para probarlo de verdad. |
 | Calidad | Tests de interfaz de la app, auditoría de accesibilidad con lector de pantalla, analítica y monitorización de errores (p. ej. Sentry). |
+
+---
+
+## 10. Las 30 funciones inspiradas en las grandes ticketeras
+
+Solo se copian las funciones, no la marca, los logos ni los textos. Todas tienen
+lógica en base de datos, API, pantalla en la app y pruebas de punta a punta.
+Se descartó a propósito el **precio dinámico**.
+
+### Tanda 1 — comprar más y mejor
+
+| # | Función | Dónde |
+| --- | --- | --- |
+| 1 | Precio final con gastos incluidos desde el primer momento | Catálogo, ficha y compra |
+| 2 | Lista de espera con aviso cuando se liberan entradas | Ficha del evento (agotado) |
+| 3 | Seguir artistas y recintos, aviso de nuevas fechas | Artista, recinto, Perfil › Siguiendo |
+| 4 | Páginas de artista y de recinto | Explorar |
+| 5 | Códigos promocionales | Organizador › Códigos; ficha del evento |
+| 6 | Preventa con código | Tipos de entrada con código |
+| 7 | Límite de entradas por cuenta | Formulario del evento |
+| 8 | Añadir al calendario (.ics) | Ficha y entrada |
+| 9 | Información práctica del recinto | «Antes de ir» |
+| 10 | Historial de pedidos y recibos | Perfil › Mis pedidos |
+
+### Tanda 2 — experiencia de fan
+
+| # | Función | Dónde |
+| --- | --- | --- |
+| 11 | Reventa oficial entre fans a precio original | Entrada › Revender; ficha del evento |
+| 12 | Cola virtual | Ficha y sala de espera |
+| 13 | Registro de fans verificados con sorteo | Ficha; Organizador › Demanda |
+| 14 | Recomendaciones «Para ti» | Explorar |
+| 15 | Cerca de mí | Explorar y Buscar |
+| 16 | Filtros por fecha (hoy, finde, 7 días, mes) | Buscar |
+| 17 | Apple Wallet y Google Wallet | Entrada |
+| 18 | Entradas accesibles con acompañante gratis | Tipos de entrada |
+| 19 | Protección de reembolso y reclamaciones | Compra, pedido y panel admin |
+| 20 | Recordatorios automáticos (24 h y apertura de puertas) | Trabajo programado |
+
+### Tanda 3 — organizador y negocio
+
+| # | Función | Dónde |
+| --- | --- | --- |
+| 21 | Plano de butacas numeradas | Ficha del evento (elegir butacas); Organizador › tipo de entrada |
+| 22 | Mejor sitio disponible (juntas, delante y centradas) | Plano de butacas |
+| 23 | Extras: parking, merch, VIP… con código de canje | Compra, pedido; Organizador › Extras |
+| 24 | Invitaciones con cupo por evento | Organizador › Invitar |
+| 25 | Exportación CSV de asistentes y ventas por canal | Organizador › Exportar; estadísticas |
+| 26 | Venta en taquilla desde el móvil (efectivo, datáfono, Bizum) | Organizador › Taquilla |
+| 27 | Aplazamientos con plazo de reembolso | Organizador › Aplazar; pedido del comprador |
+| 28 | Fases automáticas (abre al agotarse la anterior) | Organizador › tipo de entrada |
+| 29 | Centro de ayuda con preguntas frecuentes y contacto | Perfil › Centro de ayuda; panel › Soporte y FAQs |
+| 30 | Idiomas: español, inglés y catalán | Perfil › Idioma |
+
+**Límites de la función 30.** Están traducidas las pantallas del fan (explorar,
+buscar, evento, compra, entradas, pedidos, perfil, ayuda). Siguen en español: las
+pantallas del organizador, los mensajes de error que devuelve la API, las
+notificaciones push y los contenidos que escribe cada organizador o el admin
+(descripciones, preguntas frecuentes). Las traducciones viven en
+`frontend/src/lib/idiomas/` y la clave es el propio texto en español: si falta una,
+se muestra en español.
+
+**Pruebas.** 62 pruebas de punta a punta (29 del flujo base + 11 + 13 + 9 de las
+tandas) y 18 unitarias, todas en verde.

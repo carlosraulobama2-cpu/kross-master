@@ -6,6 +6,7 @@ import { Boton } from './base';
 import { api, mensajeDe } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { haptica } from '../lib/haptica';
+import { traducir as tx } from '../lib/i18n';
 
 /** Botón Seguir / Siguiendo para artistas y recintos. */
 export function BotonSeguir({ tipo, id, siguiendo }: { tipo: 'artistas' | 'recintos'; id: string; siguiendo: boolean }) {
@@ -21,7 +22,7 @@ export function BotonSeguir({ tipo, id, siguiendo }: { tipo: 'artistas' | 'recin
     try {
       await api(`/${tipo}/${id}/seguir`, { method: siguiendo ? 'DELETE' : 'PUT' });
       haptica.impacto();
-      if (!siguiendo) avisar('Te avisaremos de sus nuevas fechas', 'exito');
+      if (!siguiendo) avisar(tx('Te avisaremos de sus nuevas fechas'), 'exito');
       await Promise.all([
         qc.invalidateQueries({ queryKey: [tipo === 'artistas' ? 'artista' : 'recinto', id] }),
         qc.invalidateQueries({ predicate: (q) => q.queryKey.includes('siguiendo') }),
@@ -35,7 +36,7 @@ export function BotonSeguir({ tipo, id, siguiendo }: { tipo: 'artistas' | 'recin
 
   return (
     <Boton v={siguiendo ? 'secundario' : 'primario'} icono={siguiendo ? 'checkmark' : 'add'} bloque={false} pequeno cargando={ocupado} onPress={() => void alternar()}>
-      {siguiendo ? 'Siguiendo' : 'Seguir'}
+      {siguiendo ? tx('Siguiendo') : tx('Seguir')}
     </Boton>
   );
 }

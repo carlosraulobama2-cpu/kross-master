@@ -8,6 +8,7 @@ import { api, ErrorApi, mensajeDe } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import type { PropsPantalla } from '../../navigation/tipos';
 import { color, espacio, radio } from '../../theme';
+import { traducir as tx } from '../../lib/i18n';
 
 type Errores = Partial<Record<'nombre' | 'email' | 'password' | 'general', string>>;
 
@@ -24,9 +25,9 @@ export function AccesoScreen({ navigation, route }: PropsPantalla<'Acceso'>) {
 
   function validar(): Errores {
     const e: Errores = {};
-    if (registro && nombre.trim().length < 2) e.nombre = 'Escribe tu nombre';
-    if (!/^\S+@\S+\.\S+$/.test(email.trim())) e.email = 'Revisa el email';
-    if (registro ? password.length < 8 : !password) e.password = registro ? 'Mínimo 8 caracteres' : 'Escribe tu contraseña';
+    if (registro && nombre.trim().length < 2) e.nombre = tx('Escribe tu nombre');
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) e.email = tx('Revisa el email');
+    if (registro ? password.length < 8 : !password) e.password = registro ? tx('Mínimo 8 caracteres') : tx('Escribe tu contraseña');
     return e;
   }
 
@@ -39,7 +40,7 @@ export function AccesoScreen({ navigation, route }: PropsPantalla<'Acceso'>) {
       if (registro) {
         const r = await registrarse({ email: email.trim(), password, nombre: nombre.trim() });
         if (r.requiereConfirmacion) {
-          avisar('Te hemos enviado un email para confirmar tu cuenta', 'exito');
+          avisar(tx('Te hemos enviado un email para confirmar tu cuenta'), 'exito');
           setModo('entrar');
           return;
         }
@@ -58,11 +59,11 @@ export function AccesoScreen({ navigation, route }: PropsPantalla<'Acceso'>) {
 
   async function recuperar() {
     if (!/^\S+@\S+\.\S+$/.test(email.trim())) {
-      setErrores({ email: 'Escribe tu email para recuperar la contraseña' });
+      setErrores({ email: tx('Escribe tu email para recuperar la contraseña') });
       return;
     }
     await api('/auth/recuperar', { method: 'POST', body: { email: email.trim() } }).catch(() => undefined);
-    avisar('Si existe una cuenta, recibirás un email para cambiar la contraseña', 'info');
+    avisar(tx('Si existe una cuenta, recibirás un email para cambiar la contraseña'), 'info');
   }
 
   return (
@@ -74,10 +75,10 @@ export function AccesoScreen({ navigation, route }: PropsPantalla<'Acceso'>) {
           </T>
         </View>
         <T v="display" style={{ marginTop: espacio.xl }}>
-          {registro ? 'Crea tu cuenta' : 'Hola de nuevo'}
+          {registro ? tx('Crea tu cuenta') : tx('Hola de nuevo')}
         </T>
         <T c="texto2" style={{ marginTop: espacio.s }}>
-          {registro ? 'Compra entradas en segundos y llévalas siempre contigo.' : 'Entra para ver tus entradas y comprar en un toque.'}
+          {registro ? tx('Compra entradas en segundos y llévalas siempre contigo.') : tx('Entra para ver tus entradas y comprar en un toque.')}
         </T>
 
         <View style={s.selector}>
@@ -93,7 +94,7 @@ export function AccesoScreen({ navigation, route }: PropsPantalla<'Acceso'>) {
               escala={0.98}
             >
               <T v="cuerpoFuerte" c={modo === m ? 'texto' : 'texto3'}>
-                {m === 'entrar' ? 'Entrar' : 'Registrarme'}
+                {m === 'entrar' ? tx('Entrar') : tx('Registrarme')}
               </T>
             </Pulsable>
           ))}
@@ -108,15 +109,15 @@ export function AccesoScreen({ navigation, route }: PropsPantalla<'Acceso'>) {
             </View>
           )}
           {registro && (
-            <Campo etiqueta="Nombre" icono="person-outline" value={nombre} onChangeText={setNombre} error={errores.nombre} placeholder="Cómo te llamas" autoComplete="name" textContentType="name" />
+            <Campo etiqueta={tx('Nombre')} icono="person-outline" value={nombre} onChangeText={setNombre} error={errores.nombre} placeholder={tx('Cómo te llamas')} autoComplete="name" textContentType="name" />
           )}
           <Campo
-            etiqueta="Email"
+            etiqueta={tx('Email')}
             icono="mail-outline"
             value={email}
             onChangeText={setEmail}
             error={errores.email}
-            placeholder="tu@email.com"
+            placeholder={tx('tu@email.com')}
             keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
@@ -124,12 +125,12 @@ export function AccesoScreen({ navigation, route }: PropsPantalla<'Acceso'>) {
             textContentType="emailAddress"
           />
           <Campo
-            etiqueta="Contraseña"
+            etiqueta={tx('Contraseña')}
             icono="lock-closed-outline"
             value={password}
             onChangeText={setPassword}
             error={errores.password}
-            placeholder={registro ? 'Mínimo 8 caracteres' : 'Tu contraseña'}
+            placeholder={registro ? tx('Mínimo 8 caracteres') : tx('Tu contraseña')}
             secureTextEntry
             autoComplete={registro ? 'new-password' : 'current-password'}
             textContentType={registro ? 'newPassword' : 'password'}
@@ -138,29 +139,29 @@ export function AccesoScreen({ navigation, route }: PropsPantalla<'Acceso'>) {
           {!registro && (
             <Pulsable onPress={() => void recuperar()} style={{ alignSelf: 'flex-end' }} hitSlop={8}>
               <T v="nota" c="acento" style={{ fontWeight: '700' }}>
-                ¿Has olvidado la contraseña?
+                {tx('¿Has olvidado la contraseña?')}
               </T>
             </Pulsable>
           )}
           <Boton onPress={() => void enviar()} cargando={enviando} style={{ marginTop: espacio.s }}>
-            {registro ? 'Crear cuenta' : 'Entrar'}
+            {registro ? tx('Crear cuenta') : tx('Entrar')}
           </Boton>
           {registro && (
             <Fila gap={4} style={{ flexWrap: 'wrap', justifyContent: 'center' }}>
               <T v="nota" c="texto3">
-                Al registrarte aceptas los
+                {tx('Al registrarte aceptas los')}
               </T>
               <Pulsable onPress={() => navigation.navigate('Legal', { doc: 'terminos' })}>
                 <T v="nota" c="texto2" style={{ textDecorationLine: 'underline' }}>
-                  términos
+                  {tx('términos')}
                 </T>
               </Pulsable>
               <T v="nota" c="texto3">
-                y la
+                {tx('y la')}
               </T>
               <Pulsable onPress={() => navigation.navigate('Legal', { doc: 'privacidad' })}>
                 <T v="nota" c="texto2" style={{ textDecorationLine: 'underline' }}>
-                  privacidad
+                  {tx('privacidad')}
                 </T>
               </Pulsable>
             </Fila>

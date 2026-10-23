@@ -9,6 +9,7 @@ import { useAuth } from '../../lib/auth';
 import type { Usuario } from '../../lib/tipos';
 import type { PropsPantalla } from '../../navigation/tipos';
 import { espacio } from '../../theme';
+import { traducir as tx } from '../../lib/i18n';
 
 export function EditarPerfilScreen({ navigation }: PropsPantalla<'EditarPerfil'>) {
   const { usuario, setUsuario } = useAuth();
@@ -30,7 +31,7 @@ export function EditarPerfilScreen({ navigation }: PropsPantalla<'EditarPerfil'>
         body: { nombre: datos.nombre.trim(), telefono: datos.telefono.trim() || null, ciudad: datos.ciudad.trim() || null, bio: datos.bio.trim() || null },
       });
       setUsuario(r.usuario);
-      avisar('Perfil actualizado', 'exito');
+      avisar(tx('Perfil actualizado'), 'exito');
       navigation.goBack();
     } catch (e) {
       avisar(mensajeDe(e), 'error');
@@ -41,19 +42,19 @@ export function EditarPerfilScreen({ navigation }: PropsPantalla<'EditarPerfil'>
 
   return (
     <Pantalla
-      cabecera={<Cabecera titulo="Datos personales" />}
+      cabecera={<Cabecera titulo={tx('Datos personales')} />}
       pie={
         <Boton onPress={() => void guardar()} cargando={guardando} deshabilitado={datos.nombre.trim().length < 2}>
-          Guardar cambios
+          {tx('Guardar cambios')}
         </Boton>
       }
     >
       <View style={{ gap: espacio.l }}>
-        <Campo etiqueta="Email" value={usuario?.email} editable={false} icono="mail-outline" ayuda="El email no se puede cambiar desde la app" />
-        <Campo etiqueta="Nombre" value={datos.nombre} onChangeText={cambiar('nombre')} icono="person-outline" />
-        <Campo etiqueta="Teléfono" value={datos.telefono} onChangeText={cambiar('telefono')} icono="call-outline" keyboardType="phone-pad" placeholder="Opcional" />
-        <Campo etiqueta="Ciudad" value={datos.ciudad} onChangeText={cambiar('ciudad')} icono="location-outline" placeholder="Para recomendarte eventos cerca" />
-        <Campo etiqueta="Sobre ti" value={datos.bio} onChangeText={cambiar('bio')} multiline maxLength={500} placeholder="Opcional" />
+        <Campo etiqueta={tx('Email')} value={usuario?.email} editable={false} icono="mail-outline" ayuda={tx('El email no se puede cambiar desde la app')} />
+        <Campo etiqueta={tx('Nombre')} value={datos.nombre} onChangeText={cambiar('nombre')} icono="person-outline" />
+        <Campo etiqueta={tx('Teléfono')} value={datos.telefono} onChangeText={cambiar('telefono')} icono="call-outline" keyboardType="phone-pad" placeholder={tx('Opcional')} />
+        <Campo etiqueta={tx('Ciudad')} value={datos.ciudad} onChangeText={cambiar('ciudad')} icono="location-outline" placeholder={tx('Para recomendarte eventos cerca')} />
+        <Campo etiqueta={tx('Sobre ti')} value={datos.bio} onChangeText={cambiar('bio')} multiline maxLength={500} placeholder={tx('Opcional')} />
       </View>
     </Pantalla>
   );

@@ -4,6 +4,7 @@ import { FlatList, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Boton, Fila, Icono, Pulsable, T, type NombreIcono } from '../components/base';
 import { color, espacio } from '../theme';
+import { traducir as tx } from '../lib/i18n';
 
 const DIAPOSITIVAS: { icono: NombreIcono; titulo: string; texto: string; colores: [string, string] }[] = [
   { icono: 'compass', titulo: 'Descubre planes cerca de ti', texto: 'Conciertos, festivales, teatro y deporte en tu ciudad, en un solo sitio.', colores: ['#3A1C71', '#0B0B10'] },
@@ -36,10 +37,10 @@ export function Bienvenida({ onTerminar }: { onTerminar: () => void }) {
                 <Icono n={item.icono} tam={64} c={color.acento} />
               </View>
               <T v="display" centro style={{ maxWidth: 340 }}>
-                {item.titulo}
+                {tx(item.titulo)}
               </T>
               <T c="texto2" centro style={{ maxWidth: 320, fontSize: 17, lineHeight: 25 }}>
-                {item.texto}
+                {tx(item.texto)}
               </T>
             </View>
           </View>
@@ -55,11 +56,11 @@ export function Bienvenida({ onTerminar }: { onTerminar: () => void }) {
           icono={ultima ? 'rocket' : 'arrow-forward'}
           onPress={() => (ultima ? onTerminar() : lista.current?.scrollToIndex({ index: indice + 1, animated: true }))}
         >
-          {ultima ? 'Empezar' : 'Siguiente'}
+          {ultima ? tx('Empezar') : tx('Siguiente')}
         </Boton>
         <Pulsable onPress={onTerminar} style={{ alignSelf: 'center', padding: espacio.s, opacity: ultima ? 0 : 1 }} disabled={ultima}>
           <T v="cuerpoFuerte" c="texto3">
-            Saltar
+            {tx('Saltar')}
           </T>
         </Pulsable>
       </View>

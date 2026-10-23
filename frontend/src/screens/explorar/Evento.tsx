@@ -14,11 +14,12 @@ import { api, ErrorApi, mensajeDe } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { anadirAlCalendario } from '../../lib/calendario';
 import { useConfig, useEvento, useFavorito } from '../../lib/consultas';
-import { cuentaAtras, fechaLarga, hora, plural, precio, precioExacto } from '../../lib/formato';
+import { cuentaAtras, fechaFrase, fechaLarga, hora, plural, precio, precioExacto } from '../../lib/formato';
 import { haptica } from '../../lib/haptica';
 import type { CodigoDescuento, EventoDetalle, Extra, Pedido, Tramo } from '../../lib/tipos';
 import type { PropsPantalla } from '../../navigation/tipos';
 import { CATEGORIAS, color, espacio, radio, tipo } from '../../theme';
+import { traducir as tx } from '../../lib/i18n';
 
 export function EventoScreen({ navigation, route }: PropsPantalla<'Evento'>) {
   const { id } = route.params;
@@ -129,7 +130,7 @@ export function EventoScreen({ navigation, route }: PropsPantalla<'Evento'>) {
     try {
       await api(`/eventos/${id}/lista-espera`, { method: evento.en_lista_espera ? 'DELETE' : 'PUT' });
       haptica.exito();
-      avisar(evento.en_lista_espera ? 'Te hemos quitado de la lista de espera' : 'Te avisaremos en cuanto haya entradas', 'exito');
+      avisar(evento.en_lista_espera ? tx('Te hemos quitado de la lista de espera') : tx('Te avisaremos en cuanto haya entradas'), 'exito');
       await qc.invalidateQueries({ queryKey: ['evento', id] });
     } catch (e) {
       avisar(mensajeDe(e), 'error');
@@ -156,7 +157,7 @@ export function EventoScreen({ navigation, route }: PropsPantalla<'Evento'>) {
     try {
       await api(`/eventos/${id}/registro-fan`, { method: 'POST' });
       haptica.exito();
-      avisar('¡Inscrito! Te avisaremos del resultado del sorteo', 'exito');
+      avisar(tx('¡Inscrito! Te avisaremos del resultado del sorteo'), 'exito');
       await qc.invalidateQueries({ queryKey: ['evento', id] });
     } catch (e) {
       avisar(mensajeDe(e), 'error');
@@ -204,16 +205,16 @@ export function EventoScreen({ navigation, route }: PropsPantalla<'Evento'>) {
           ) : (
             <>
               <Fila gap={espacio.s} style={{ flexWrap: 'wrap' }}>
-                {categoria && <Insignia texto={categoria.nombre} tono="acento" icono={categoria.icono} />}
+                {categoria && <Insignia texto={tx(categoria.nombre)} tono="acento" icono={categoria.icono} />}
                 {cuentaAtras(evento.inicia_en) && <Insignia texto={cuentaAtras(evento.inicia_en)!} />}
                 {evento.edad_minima ? <Insignia texto={`+${evento.edad_minima}`} tono="aviso" /> : null}
-                {evento.fecha_original ? <Insignia texto="Aplazado" tono="aviso" icono="calendar-outline" /> : null}
+                {evento.fecha_original ? <Insignia texto={tx('Aplazado')} tono="aviso" icono="calendar-outline" /> : null}
               </Fila>
               <T v="display" style={{ marginTop: espacio.m }} accessibilityRole="header">
                 {evento.titulo}
               </T>
               <Fila gap={6} style={{ marginTop: espacio.s, flexWrap: 'wrap' }}>
-                <T c="texto2">por</T>
+                <T c="texto2">{tx('por')}</T>
                 <T v="cuerpoFuerte">{evento.organizador_nombre}</T>
                 {evento.valoracion.total > 0 && (
                   <>
@@ -229,7 +230,7 @@ export function EventoScreen({ navigation, route }: PropsPantalla<'Evento'>) {
               {evento.artistas.length > 0 && (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: espacio.l, marginHorizontal: -espacio.xl }} contentContainerStyle={{ gap: espacio.s, paddingHorizontal: espacio.xl }}>
                   {evento.artistas.map((a) => (
-                    <Pulsable key={a.id} onPress={() => navigation.navigate('Artista', { id: a.id })} style={s.artista} accessibilityLabel={`Ver artista ${a.nombre}`}>
+                    <Pulsable key={a.id} onPress={() => navigation.navigate('Artista', { id: a.id })} style={s.artista} accessibilityLabel={tx('Ver artista {0}', { 0: a.nombre })}>
                       <View style={s.artistaAvatar}>
                         <T v="cuerpoFuerte" c="acentoTexto">
                           {a.nombre[0]}
@@ -246,11 +247,11 @@ export function EventoScreen({ navigation, route }: PropsPantalla<'Evento'>) {
                 <View style={s.aplazado}>
                   <Icono n="calendar-outline" c={color.aviso} />
                   <View style={{ flex: 1, gap: 2 }}>
-                    <T v="cuerpoFuerte">Nueva fecha · antes {fechaLarga(evento.fecha_original)}</T>
+                    <T v="cuerpoFuerte">{tx('Cambio de fecha: antes era el {0}', { 0: fechaFrase(evento.fecha_original) })}</T>
                     <T v="nota" c="texto2">
-                      Las entradas siguen valiendo.{' '}
+                      {tx('Las entradas siguen valiendo.')}{' '}
                       {evento.reembolso_aplazamiento_hasta && new Date(evento.reembolso_aplazamiento_hasta) > new Date()
-                        ? `Si ya tenías entradas y no puedes ir, pide el reembolso desde tu pedido hasta el ${fechaLarga(evento.reembolso_aplazamiento_hasta)}.`
+                        ? tx('Si ya tenías entradas y no puedes ir, pide el reembolso desde tu pedido hasta el {0}.', { 0: fechaFrase(evento.reembolso_aplazamiento_hasta) })
                         : ''}
                     </T>
                   </View>
@@ -264,12 +265,12 @@ export function EventoScreen({ navigation, route }: PropsPantalla<'Evento'>) {
                   titulo={fechaLarga(evento.inicia_en)}
                   texto={[
                     `${hora(evento.inicia_en)}${evento.termina_en ? ` – ${hora(evento.termina_en)}` : ''}`,
-                    evento.puertas_abren_en ? `puertas ${hora(evento.puertas_abren_en)}` : null,
+                    evento.puertas_abren_en ? tx('puertas {0}', { 0: hora(evento.puertas_abren_en) }) : null,
                   ]
                     .filter(Boolean)
                     .join(' · ')}
                   onPress={() => void anadirAlCalendario(id)}
-                  accion="Añadir"
+                  accion={tx('Añadir')}
                 />
                 <Separador m={0} />
                 <Dato
@@ -277,21 +278,21 @@ export function EventoScreen({ navigation, route }: PropsPantalla<'Evento'>) {
                   titulo={evento.recinto}
                   texto={[evento.direccion, evento.ciudad].filter(Boolean).join(', ')}
                   onPress={evento.recinto_id ? () => navigation.navigate('Recinto', { id: evento.recinto_id! }) : undefined}
-                  accion={evento.recinto_id ? 'Ver' : undefined}
+                  accion={evento.recinto_id ? tx('Ver') : undefined}
                 />
               </View>
 
               {/* Descripción */}
               {evento.descripcion ? (
                 <View style={{ marginTop: espacio.xxl, gap: espacio.s }}>
-                  <T v="subtitulo">Sobre el evento</T>
+                  <T v="subtitulo">{tx('Sobre el evento')}</T>
                   <T c="texto2" numberOfLines={descripcionCompleta ? undefined : 4}>
                     {evento.descripcion}
                   </T>
                   {evento.descripcion.length > 180 && (
                     <Pulsable onPress={() => setDescripcionCompleta((v) => !v)} style={{ alignSelf: 'flex-start' }}>
                       <T v="cuerpoFuerte" c="acento">
-                        {descripcionCompleta ? 'Ver menos' : 'Leer más'}
+                        {descripcionCompleta ? tx('Ver menos') : tx('Leer más')}
                       </T>
                     </Pulsable>
                   )}
@@ -301,17 +302,17 @@ export function EventoScreen({ navigation, route }: PropsPantalla<'Evento'>) {
               {/* Entradas */}
               <View style={{ marginTop: espacio.xxl, gap: espacio.m }} onLayout={(e) => (yEntradas.current = e.nativeEvent.layout.y)}>
                 <Fila style={{ justifyContent: 'space-between' }}>
-                  <T v="subtitulo">Entradas</T>
+                  <T v="subtitulo">{tx('Entradas')}</T>
                   <T v="nota" c="texto3">
-                    Precios con gastos incluidos
+                    {tx('Precios con gastos incluidos')}
                   </T>
                 </Fila>
-                {evento.tramos.length === 0 && <T c="texto2">Las entradas aún no están disponibles.</T>}
+                {evento.tramos.length === 0 && <T c="texto2">{tx('Las entradas aún no están disponibles.')}</T>}
                 {conCola && evento.cola?.admitido && evento.cola.expira_en && (
                   <View style={s.turno}>
                     <Icono n="checkmark-circle" c={color.acento} />
                     <T v="cuerpoFuerte" style={{ flex: 1 }}>
-                      ¡Es tu turno! Compra antes de las {hora(evento.cola.expira_en)}
+                      {tx('¡Es tu turno! Compra antes de las {0}', { 0: hora(evento.cola.expira_en) })}
                     </T>
                   </View>
                 )}
@@ -346,7 +347,7 @@ export function EventoScreen({ navigation, route }: PropsPantalla<'Evento'>) {
                   <Fila gap={6}>
                     <Icono n="person-outline" tam={14} c={color.texto3} />
                     <T v="nota" c="texto3">
-                      Máximo {evento.max_por_usuario} entradas por persona
+                      {tx('Máximo {0} entradas por persona', { 0: evento.max_por_usuario })}
                     </T>
                   </Fila>
                 )}
@@ -355,7 +356,7 @@ export function EventoScreen({ navigation, route }: PropsPantalla<'Evento'>) {
                   <Fila gap={6}>
                     <Icono n="lock-open" tam={14} c={color.acento} />
                     <T v="nota" c="acento">
-                      Preventa desbloqueada con el código {acceso}
+                      {tx('Preventa desbloqueada con el código {0}', { 0: acceso })}
                     </T>
                   </Fila>
                 )}
@@ -366,14 +367,14 @@ export function EventoScreen({ navigation, route }: PropsPantalla<'Evento'>) {
                     </T>
                     <Pulsable onPress={() => setAcceso(undefined)}>
                       <T v="nota" c="texto" style={{ fontWeight: '700' }}>
-                        Probar otro
+                        {tx('Probar otro')}
                       </T>
                     </Pulsable>
                   </View>
                 )}
                 {evento.extras.length > 0 && !reventa && (
                   <View style={{ gap: espacio.s, marginTop: espacio.s }}>
-                    <T v="cuerpoFuerte">Completa tu plan</T>
+                    <T v="cuerpoFuerte">{tx('Completa tu plan')}</T>
                     {evento.extras.map((x) => (
                       <FilaExtra
                         key={x.id}
@@ -392,9 +393,9 @@ export function EventoScreen({ navigation, route }: PropsPantalla<'Evento'>) {
                   <Pulsable onPress={() => setSeguro((v) => !v)} style={[s.seguro, seguro && { borderColor: color.acento }]} escala={0.99} accessibilityRole="switch" accessibilityState={{ checked: seguro }}>
                     <Icono n="umbrella-outline" c={seguro ? color.acento : color.texto2} />
                     <View style={{ flex: 1, gap: 2 }}>
-                      <T v="cuerpoFuerte">Protección de reembolso · +{precioExacto(costeSeguro)}</T>
+                      <T v="cuerpoFuerte">{tx('Protección de reembolso · +{0}', { 0: precioExacto(costeSeguro) })}</T>
                       <T v="nota" c="texto2">
-                        Si no puedes ir por enfermedad, un imprevisto o un viaje cancelado, te devolvemos el precio de las entradas.
+                        {tx('Si no puedes ir por enfermedad, un imprevisto o un viaje cancelado, te devolvemos el precio de las entradas.')}
                       </T>
                     </View>
                     <Switch value={seguro} onValueChange={setSeguro} trackColor={{ true: color.acento, false: color.superficie3 }} thumbColor={color.blanco} />
@@ -409,7 +410,7 @@ export function EventoScreen({ navigation, route }: PropsPantalla<'Evento'>) {
               <View style={[s.tarjeta, { flexDirection: 'row', gap: espacio.m, padding: espacio.l }]}>
                 <Icono n="shield-checkmark" c={color.acento} />
                 <View style={{ flex: 1, gap: 2 }}>
-                  <T v="cuerpoFuerte">Compra protegida</T>
+                  <T v="cuerpoFuerte">{tx('Compra protegida')}</T>
                   <T v="nota" c="texto2">
                     {evento.politica_devolucion} Tu entrada lleva un QR que cambia cada 30 segundos: las capturas no sirven.
                   </T>
@@ -423,18 +424,18 @@ export function EventoScreen({ navigation, route }: PropsPantalla<'Evento'>) {
       {/* Cabecera flotante que aparece al hacer scroll */}
       <Animated.View pointerEvents="none" style={[s.cabeceraFondo, { height: insets.top + 64, opacity: opacidadCabecera }]} />
       <View style={[s.cabeceraFlotante, { top: insets.top + espacio.s }]}>
-        <BotonIcono n="chevron-back" etiqueta="Atrás" onPress={() => navigation.goBack()} fondo="rgba(11,11,16,0.6)" />
+        <BotonIcono n="chevron-back" etiqueta={tx('Atrás')} onPress={() => navigation.goBack()} fondo="rgba(11,11,16,0.6)" />
         <Animated.View style={{ flex: 1, opacity: opacidadCabecera, paddingHorizontal: espacio.s }}>
           <T v="cabecera" numberOfLines={1} centro>
             {evento?.titulo}
           </T>
         </Animated.View>
         <Fila>
-          <BotonIcono n="share-outline" etiqueta="Compartir" onPress={() => void compartir()} fondo="rgba(11,11,16,0.6)" />
+          <BotonIcono n="share-outline" etiqueta={tx('Compartir')} onPress={() => void compartir()} fondo="rgba(11,11,16,0.6)" />
           <BotonIcono
             n={evento?.favorito ? 'heart' : 'heart-outline'}
             c={evento?.favorito ? color.peligro : color.texto}
-            etiqueta={evento?.favorito ? 'Quitar de favoritos' : 'Guardar en favoritos'}
+            etiqueta={evento?.favorito ? tx('Quitar de favoritos') : tx('Guardar en favoritos')}
             fondo="rgba(11,11,16,0.6)"
             onPress={() => {
               if (!usuario) return navigation.navigate('Acceso');
@@ -450,9 +451,9 @@ export function EventoScreen({ navigation, route }: PropsPantalla<'Evento'>) {
           {conCola && !evento.cola?.admitido ? (
             <Fila gap={espacio.l}>
               <View style={{ flex: 1 }}>
-                <T v="cuerpoFuerte">{evento.cola?.en_cola ? 'Estás en la cola' : 'Venta con cola virtual'}</T>
+                <T v="cuerpoFuerte">{evento.cola?.en_cola ? tx('Estás en la cola') : tx('Venta con cola virtual')}</T>
                 <T v="nota" c="texto2">
-                  {evento.cola?.en_cola ? `${evento.cola.por_delante ?? 0} personas delante · ~${evento.cola.minutos_estimados ?? 1} min` : 'Hay mucha demanda: coge tu turno'}
+                  {evento.cola?.en_cola ? tx('{0} personas delante · ~{1} min', { 0: evento.cola.por_delante ?? 0, 1: evento.cola.minutos_estimados ?? 1 }) : tx('Hay mucha demanda: coge tu turno')}
                 </T>
               </View>
               <Boton
@@ -461,7 +462,7 @@ export function EventoScreen({ navigation, route }: PropsPantalla<'Evento'>) {
                 cargando={uniendose}
                 onPress={() => (evento.cola?.en_cola ? navigation.navigate('Cola', { eventoId: id, titulo: evento.titulo }) : void entrarEnCola())}
               >
-                {evento.cola?.en_cola ? 'Ver mi turno' : 'Entrar en la cola'}
+                {evento.cola?.en_cola ? tx('Ver mi turno') : tx('Entrar en la cola')}
               </Boton>
             </Fila>
           ) : nEntradas > 0 || nExtras > 0 ? (
@@ -470,33 +471,33 @@ export function EventoScreen({ navigation, route }: PropsPantalla<'Evento'>) {
                 <T v="nota" c="texto2">
                   {nEntradas > 0 ? plural(nEntradas, 'entrada', 'entradas') : ''}
                   {reventa ? ' de reventa' : ''}
-                  {nExtras > 0 ? `${nEntradas > 0 ? ' + ' : ''}${plural(nExtras, 'extra', 'extras')}` : ''}
+                  {nExtras > 0 ? tx('{0}{1}', { 0: nEntradas > 0 ? ' + ' : '', 1: plural(nExtras, 'extra', 'extras') }) : ''}
                   {descuento > 0 ? ` · −${precioExacto(descuento)}` : ''}
                 </T>
-                <T v="subtitulo">{totalEstimado === 0 ? 'Gratis' : precioExacto(totalEstimado)}</T>
+                <T v="subtitulo">{totalEstimado === 0 ? tx('Gratis') : precioExacto(totalEstimado)}</T>
               </View>
               <Boton onPress={() => void comprar()} cargando={comprando} bloque={false} icono="arrow-forward" style={{ minWidth: 160 }}>
-                {totalEstimado === 0 ? 'Reservar' : 'Continuar'}
+                {totalEstimado === 0 ? tx('Reservar') : tx('Continuar')}
               </Boton>
             </Fila>
           ) : aLaVenta ? (
             <Fila gap={espacio.l}>
               <View style={{ flex: 1 }}>
                 <T v="nota" c="texto2">
-                  Desde
+                  {tx('Desde')}
                 </T>
                 <T v="subtitulo">{precio(Math.min(...evento.tramos.filter((t) => t.estado === 'a_la_venta' || t.reventa_disponibles > 0).map((t) => t.precio_total_centimos)))}</T>
               </View>
               <Boton bloque={false} icono="ticket" style={{ minWidth: 160 }} onPress={irAEntradas}>
-                Elegir entradas
+                {tx('Elegir entradas')}
               </Boton>
             </Fila>
           ) : (
             <Fila gap={espacio.l}>
               <View style={{ flex: 1 }}>
-                <T v="cuerpoFuerte">Agotado</T>
+                <T v="cuerpoFuerte">{tx('Agotado')}</T>
                 <T v="nota" c="texto2">
-                  {evento.en_lista_espera ? 'Estás en la lista de espera' : 'Te avisamos si se liberan entradas'}
+                  {evento.en_lista_espera ? tx('Estás en la lista de espera') : tx('Te avisamos si se liberan entradas')}
                 </T>
               </View>
               <Boton
@@ -506,7 +507,7 @@ export function EventoScreen({ navigation, route }: PropsPantalla<'Evento'>) {
                 cargando={esperando}
                 onPress={() => void alternarListaEspera()}
               >
-                {evento.en_lista_espera ? 'Salir' : 'Avisarme'}
+                {evento.en_lista_espera ? tx('Salir') : tx('Avisarme')}
               </Boton>
             </Fila>
           )}
@@ -538,7 +539,7 @@ function Dato({ icono, titulo, texto, onPress, accion }: { icono: NombreIcono; t
     </Fila>
   );
   return onPress ? (
-    <Pulsable onPress={onPress} escala={0.99} accessibilityLabel={`${titulo}. ${accion ?? ''}`}>
+    <Pulsable onPress={onPress} escala={0.99} accessibilityLabel={tx('{0}. {1}', { 0: titulo, 1: accion ?? '' })}>
       {contenido}
     </Pulsable>
   ) : (
@@ -581,9 +582,9 @@ function FilaTramo({
             <T v="cuerpoFuerte" style={{ fontWeight: '700', flexShrink: 1 }}>
               {tramo.nombre}
             </T>
-            {tramo.preventa && <Insignia texto="Preventa" tono="info" icono="lock-open" />}
-            {tramo.accesible && <Insignia texto="Accesible" tono="info" icono="accessibility" />}
-            {tramo.numerado && <Insignia texto="Numerada" tono="info" icono="grid-outline" />}
+            {tramo.preventa && <Insignia texto={tx('Preventa')} tono="info" icono="lock-open" />}
+            {tramo.accesible && <Insignia texto={tx('Accesible')} tono="info" icono="accessibility" />}
+            {tramo.numerado && <Insignia texto={tx('Numerada')} tono="info" icono="grid-outline" />}
           </Fila>
           {tramo.descripcion ? (
             <T v="nota" c="texto2">
@@ -592,28 +593,28 @@ function FilaTramo({
           ) : null}
           {tramo.incluye_acompanante && (
             <T v="nota" c="info">
-              Incluye entrada gratis para acompañante
+              {tx('Incluye entrada gratis para acompañante')}
             </T>
           )}
           <Fila gap={espacio.s} style={{ marginTop: 4, flexWrap: 'wrap' }}>
             <T v="cabecera">{precio(tramo.precio_total_centimos)}</T>
             {tramo.gastos_centimos > 0 && (
               <T v="nota" c="texto3">
-                incl. {precioExacto(tramo.gastos_centimos)} de gastos
+                {tx('incl. {0} de gastos', { 0: precioExacto(tramo.gastos_centimos) })}
               </T>
             )}
           </Fila>
           <Fila gap={espacio.s} style={{ marginTop: 2 }}>
-            {tramo.estado === 'agotado' && <Insignia texto="Agotado" tono="peligro" />}
-            {tramo.estado === 'proximamente' && <Insignia texto={tramo.abre_al_agotar ? `Abre al agotarse ${tramo.abre_al_agotar}` : 'Próximamente'} tono="info" />}
-            {tramo.estado === 'finalizado' && <Insignia texto="Venta cerrada" />}
-            {pocas && <Insignia texto={`Quedan ${tramo.disponibles}`} tono="aviso" />}
+            {tramo.estado === 'agotado' && <Insignia texto={tx('Agotado')} tono="peligro" />}
+            {tramo.estado === 'proximamente' && <Insignia texto={tramo.abre_al_agotar ? tx('Abre al agotarse {0}', { 0: tramo.abre_al_agotar }) : tx('Próximamente')} tono="info" />}
+            {tramo.estado === 'finalizado' && <Insignia texto={tx('Venta cerrada')} />}
+            {pocas && <Insignia texto={tx('Quedan {0}', { 0: tramo.disponibles })} tono="aviso" />}
           </Fila>
         </View>
         {disponible && !bloqueado && !tramo.numerado && <Contador valor={cantidad} max={max} onCambio={onCambio} />}
         {disponible && !bloqueado && tramo.numerado && (
           <Boton pequeno bloque={false} v={plano ? 'secundario' : 'primario'} icono={plano ? 'chevron-up' : 'grid-outline'} onPress={() => setPlano((v) => !v)}>
-            {plano ? 'Cerrar' : butacas.length ? `${butacas.length} elegidas` : 'Elegir butacas'}
+            {plano ? tx('Cerrar') : butacas.length ? `${butacas.length} elegidas` : tx('Elegir butacas')}
           </Boton>
         )}
         {disponible && bloqueado && <Icono n="lock-closed-outline" c={color.texto3} />}
@@ -632,7 +633,7 @@ function FilaTramo({
         <View style={s.reventa}>
           <Icono n="swap-horizontal" c={color.info} />
           <View style={{ flex: 1 }}>
-            <T v="cuerpoFuerte">Reventa oficial</T>
+            <T v="cuerpoFuerte">{tx('Reventa oficial')}</T>
             <T v="nota" c="texto2">
               {plural(tramo.reventa_disponibles, 'entrada', 'entradas')} de otros fans a precio original
             </T>
@@ -666,7 +667,7 @@ function FilaExtra({ extra, cantidad, onCambio }: { extra: Extra; cantidad: numb
             {precio(extra.precio_centimos)}
           </T>
         </View>
-        {agotado ? <Insignia texto="Agotado" tono="peligro" /> : <Contador valor={cantidad} max={Math.min(extra.max_por_pedido, extra.disponibles)} onCambio={onCambio} />}
+        {agotado ? <Insignia texto={tx('Agotado')} tono="peligro" /> : <Contador valor={cantidad} max={Math.min(extra.max_por_pedido, extra.disponibles)} onCambio={onCambio} />}
       </Fila>
     </View>
   );
@@ -675,11 +676,11 @@ function FilaExtra({ extra, cantidad, onCambio }: { extra: Extra; cantidad: numb
 /** Registro de fans verificados: inscripción y resultado del sorteo. */
 function TarjetaFans({ estado, abierto, onInscribirse }: { estado: EventoDetalle['registro_fan']; abierto: boolean; onInscribirse: () => void }) {
   const textos = {
-    inscrito: ['Estás inscrito', 'Cuando se haga el sorteo te avisaremos. Si sales elegido, verás aquí la preventa.'],
-    seleccionado: ['¡Has sido seleccionado!', 'Ya puedes comprar en la preventa para fans: la tienes arriba, en Entradas.'],
-    no_seleccionado: ['Esta vez no hubo suerte', 'Te avisaremos cuando abra la venta general.'],
+    inscrito: [tx('Estás inscrito'), tx('Cuando se haga el sorteo te avisaremos. Si sales elegido, verás aquí la preventa.')],
+    seleccionado: [tx('¡Has sido seleccionado!'), tx('Ya puedes comprar en la preventa para fans: la tienes arriba, en Entradas.')],
+    no_seleccionado: [tx('Esta vez no hubo suerte'), tx('Te avisaremos cuando abra la venta general.')],
   } as const;
-  const [titulo, texto] = estado ? textos[estado] : ['Registro de fans verificados', 'Inscríbete para optar a la preventa. Se sortean las plazas entre los fans registrados.'];
+  const [titulo, texto] = estado ? textos[estado] : [tx('Registro de fans verificados'), tx('Inscríbete para optar a la preventa. Se sortean las plazas entre los fans registrados.')];
   return (
     <View style={[s.tarjeta, { padding: espacio.l, gap: espacio.m }, estado === 'seleccionado' && { borderColor: color.acento }]}>
       <Fila gap={espacio.m} style={{ alignItems: 'flex-start' }}>
@@ -693,7 +694,7 @@ function TarjetaFans({ estado, abierto, onInscribirse }: { estado: EventoDetalle
       </Fila>
       {!estado && abierto && (
         <Boton v="secundario" pequeno icono="person-add-outline" onPress={onInscribirse}>
-          Inscribirme
+          {tx('Inscribirme')}
         </Boton>
       )}
     </View>
@@ -709,7 +710,7 @@ function CodigoPreventa({ onDesbloquear, cargando }: { onDesbloquear: (codigo: s
       <Pulsable onPress={() => setAbierto(true)} style={s.enlace} escala={0.98}>
         <Icono n="key-outline" tam={18} c={color.info} />
         <T v="cuerpoFuerte" style={{ color: color.info }}>
-          ¿Tienes un código de preventa?
+          {tx('¿Tienes un código de preventa?')}
         </T>
       </Pulsable>
     );
@@ -720,17 +721,17 @@ function CodigoPreventa({ onDesbloquear, cargando }: { onDesbloquear: (codigo: s
       <TextInput
         value={texto}
         onChangeText={(t) => setTexto(t.toUpperCase())}
-        placeholder="CÓDIGO DE PREVENTA"
+        placeholder={tx('CÓDIGO DE PREVENTA')}
         placeholderTextColor={color.texto3}
         autoCapitalize="characters"
         autoCorrect={false}
         autoFocus
-        accessibilityLabel="Código de preventa"
+        accessibilityLabel={tx('Código de preventa')}
         style={s.entradaCodigo}
         onSubmitEditing={() => texto.trim() && onDesbloquear(texto.trim())}
       />
       <Boton pequeno bloque={false} cargando={cargando} deshabilitado={texto.trim().length < 3} onPress={() => onDesbloquear(texto.trim())}>
-        Desbloquear
+        {tx('Desbloquear')}
       </Boton>
     </View>
   );
@@ -769,7 +770,7 @@ function CodigoPromo({ eventoId, codigo, onCambio }: { eventoId: string; codigo:
             {codigo.descripcion ?? (codigo.tipo === 'porcentaje' ? `${codigo.valor} % de descuento` : `${precioExacto(codigo.valor)} de descuento`)}
           </T>
         </View>
-        <Pulsable onPress={() => onCambio(null)} accessibilityLabel="Quitar código" hitSlop={10}>
+        <Pulsable onPress={() => onCambio(null)} accessibilityLabel={tx('Quitar código')} hitSlop={10}>
           <Icono n="close-circle" c={color.texto2} />
         </Pulsable>
       </View>
@@ -780,7 +781,7 @@ function CodigoPromo({ eventoId, codigo, onCambio }: { eventoId: string; codigo:
       <Pulsable onPress={() => setAbierto(true)} style={s.enlace} escala={0.98}>
         <Icono n="pricetag-outline" tam={18} c={color.acento} />
         <T v="cuerpoFuerte" c="acento">
-          Añadir código de descuento
+          {tx('Añadir código de descuento')}
         </T>
       </Pulsable>
     );
@@ -795,17 +796,17 @@ function CodigoPromo({ eventoId, codigo, onCambio }: { eventoId: string; codigo:
             setTexto(t.toUpperCase());
             setError(null);
           }}
-          placeholder="CÓDIGO"
+          placeholder={tx('CÓDIGO')}
           placeholderTextColor={color.texto3}
           autoCapitalize="characters"
           autoCorrect={false}
           autoFocus
-          accessibilityLabel="Código de descuento"
+          accessibilityLabel={tx('Código de descuento')}
           style={s.entradaCodigo}
           onSubmitEditing={() => texto.trim() && void aplicar()}
         />
         <Boton pequeno bloque={false} cargando={comprobando} deshabilitado={texto.trim().length < 3} onPress={() => void aplicar()}>
-          Aplicar
+          {tx('Aplicar')}
         </Boton>
       </View>
       {error && (
@@ -821,17 +822,17 @@ function CodigoPromo({ eventoId, codigo, onCambio }: { eventoId: string; codigo:
 export function AntesDeIr({ evento }: { evento: Pick<EventoDetalle, 'recinto_info' | 'puertas_abren_en'> }) {
   const r = evento.recinto_info;
   const filas: [NombreIcono, string, string | null | undefined][] = [
-    ['time-outline', 'Apertura de puertas', evento.puertas_abren_en ? `A las ${hora(evento.puertas_abren_en)}` : null],
-    ['navigate-outline', 'Cómo llegar', r?.como_llegar],
-    ['car-outline', 'Parking', r?.parking],
-    ['accessibility-outline', 'Accesibilidad', r?.accesibilidad],
-    ['ban-outline', 'No está permitido', r?.objetos_prohibidos],
+    ['time-outline', tx('Apertura de puertas'), evento.puertas_abren_en ? tx('A las {0}', { 0: hora(evento.puertas_abren_en) }) : null],
+    ['navigate-outline', tx('Cómo llegar'), r?.como_llegar],
+    ['car-outline', tx('Parking'), r?.parking],
+    ['accessibility-outline', tx('Accesibilidad'), r?.accesibilidad],
+    ['ban-outline', tx('No está permitido'), r?.objetos_prohibidos],
   ];
   const visibles = filas.filter(([, , v]) => v);
   if (!visibles.length) return null;
   return (
     <View style={{ marginTop: espacio.xxl, gap: espacio.m }}>
-      <T v="subtitulo">Antes de ir</T>
+      <T v="subtitulo">{tx('Antes de ir')}</T>
       <View style={[s.tarjeta, { marginTop: 0 }]}>
         {visibles.map(([icono, titulo, valor], i) => (
           <View key={titulo}>

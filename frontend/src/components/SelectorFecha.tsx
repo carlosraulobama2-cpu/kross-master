@@ -4,6 +4,7 @@ import { Platform, StyleSheet, View } from 'react-native';
 import { fechaLarga, hora } from '../lib/formato';
 import { color, espacio, radio } from '../theme';
 import { Icono, Pulsable, T } from './base';
+import { traducir as tx } from '../lib/i18n';
 
 /** Selector de fecha y hora nativo (iOS en una vista, Android en dos pasos). */
 export function SelectorFecha({ etiqueta, valor, onCambio, minimo }: { etiqueta: string; valor: Date | null; onCambio: (d: Date) => void; minimo?: Date }) {
@@ -18,7 +19,7 @@ export function SelectorFecha({ etiqueta, valor, onCambio, minimo }: { etiqueta:
       <Pulsable onPress={() => setPaso(paso === 'cerrado' ? 'fecha' : 'cerrado')} style={s.caja} escala={0.99} accessibilityLabel={etiqueta}>
         <Icono n="calendar-outline" tam={18} c={valor ? color.acento : color.texto3} />
         <T c={valor ? 'texto' : 'texto3'} style={{ flex: 1 }}>
-          {valor ? `${fechaLarga(valor.toISOString())} · ${hora(valor.toISOString())}` : 'Elegir fecha y hora'}
+          {valor ? `${fechaLarga(valor.toISOString())} · ${hora(valor.toISOString())}` : tx('Elegir fecha y hora')}
         </T>
         <Icono n={paso === 'cerrado' ? 'chevron-down' : 'chevron-up'} tam={18} c={color.texto3} />
       </Pulsable>

@@ -3,6 +3,7 @@ import { Animated, Easing, StyleSheet, View, type DimensionValue, type StyleProp
 import { mensajeDe } from '../lib/api';
 import { color, espacio, radio } from '../theme';
 import { Boton, Icono, T, type NombreIcono } from './base';
+import { traducir as tx } from '../lib/i18n';
 
 /** Bloque gris con pulso suave mientras carga. */
 export function Esqueleto({ ancho = '100%', alto = 16, r = radio.s, style }: { ancho?: DimensionValue; alto?: DimensionValue; r?: number; style?: StyleProp<ViewStyle> }) {
@@ -43,11 +44,11 @@ export function ErrorEstado({ error, reintentar }: { error: unknown; reintentar:
   return (
     <Vacio
       icono="cloud-offline-outline"
-      titulo="No hemos podido cargar esto"
+      titulo={tx('No hemos podido cargar esto')}
       texto={mensajeDe(error)}
       accion={
         <Boton v="secundario" icono="refresh" onPress={reintentar} bloque={false}>
-          Reintentar
+          {tx('Reintentar')}
         </Boton>
       }
     />

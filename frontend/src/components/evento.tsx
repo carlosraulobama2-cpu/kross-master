@@ -5,6 +5,7 @@ import { cuandoEs, diaCorto, precio } from '../lib/formato';
 import type { EventoResumen } from '../lib/tipos';
 import { CATEGORIAS, color, espacio, radio, type Categoria } from '../theme';
 import { Fila, Icono, Insignia, Pulsable, T } from './base';
+import { traducir as tx } from '../lib/i18n';
 
 /** Degradado por categoría: se ve mientras carga la foto o si no la hay. */
 const DEGRADADOS: Record<Categoria, [string, string]> = {
@@ -44,9 +45,9 @@ function Fecha({ iso }: { iso: string }) {
 }
 
 function etiquetaDisponibilidad(e: EventoResumen) {
-  if (e.aforo > 0 && e.disponibles === 0 && e.reventa_disponibles > 0) return <Insignia texto="Reventa" tono="info" icono="swap-horizontal" />;
-  if (e.aforo > 0 && e.disponibles === 0) return <Insignia texto="Agotado" tono="peligro" />;
-  if (e.aforo > 0 && e.disponibles / e.aforo < 0.15) return <Insignia texto="Últimas entradas" tono="aviso" icono="flame" />;
+  if (e.aforo > 0 && e.disponibles === 0 && e.reventa_disponibles > 0) return <Insignia texto={tx('Reventa')} tono="info" icono="swap-horizontal" />;
+  if (e.aforo > 0 && e.disponibles === 0) return <Insignia texto={tx('Agotado')} tono="peligro" />;
+  if (e.aforo > 0 && e.disponibles / e.aforo < 0.15) return <Insignia texto={tx('Últimas entradas')} tono="aviso" icono="flame" />;
   return null;
 }
 
@@ -57,7 +58,7 @@ export function TarjetaDestacada({ evento, onPress, ancho }: { evento: EventoRes
       <ImagenEvento uri={evento.imagen_url} categoria={evento.categoria} style={{ width: ancho, height: ancho * 1.12 }} r={radio.xxl} />
       <LinearGradient colors={['transparent', 'rgba(5,5,8,0.55)', 'rgba(5,5,8,0.96)']} locations={[0.35, 0.6, 1]} style={[StyleSheet.absoluteFill, { borderRadius: radio.xxl }]} />
       <View style={s.destacadaArriba}>
-        <Insignia texto="Destacado" tono="acento" icono="star" />
+        <Insignia texto={tx('Destacado')} tono="acento" icono="star" />
         {etiquetaDisponibilidad(evento)}
       </View>
       <View style={s.destacadaAbajo}>
@@ -76,7 +77,7 @@ export function TarjetaDestacada({ evento, onPress, ancho }: { evento: EventoRes
           </Fila>
           <View style={s.precioPastilla}>
             <T v="nota" c="acentoTexto" style={{ fontWeight: '800' }}>
-              {evento.precio_desde_total_centimos ? `Desde ${precio(evento.precio_desde_total_centimos)}` : 'Gratis'}
+              {evento.precio_desde_total_centimos ? tx('Desde {0}', { 0: precio(evento.precio_desde_total_centimos) }) : tx('Gratis')}
             </T>
           </View>
         </Fila>
@@ -108,7 +109,7 @@ export function FilaEvento({ evento, onPress }: { evento: EventoResumen; onPress
         </T>
         <Fila style={{ marginTop: 4, justifyContent: 'space-between' }}>
           <T v="nota" style={{ fontWeight: '800' }}>
-            {evento.precio_desde_total_centimos ? `Desde ${precio(evento.precio_desde_total_centimos)}` : 'Gratis'}
+            {evento.precio_desde_total_centimos ? tx('Desde {0}', { 0: precio(evento.precio_desde_total_centimos) }) : tx('Gratis')}
           </T>
           {etiquetaDisponibilidad(evento)}
         </Fila>
@@ -131,7 +132,7 @@ export function TarjetaEvento({ evento, onPress, ancho = 220 }: { evento: Evento
         {evento.titulo}
       </T>
       <T v="nota" c="texto2" numberOfLines={1} style={{ marginTop: -6 }}>
-        {evento.ciudad} · {evento.precio_desde_total_centimos ? `desde ${precio(evento.precio_desde_total_centimos)}` : 'gratis'}
+        {evento.ciudad} · {evento.precio_desde_total_centimos ? tx('desde {0}', { 0: precio(evento.precio_desde_total_centimos) }) : 'gratis'}
       </T>
       {evento.motivo && (
         <Fila gap={4} style={{ marginTop: -4 }}>

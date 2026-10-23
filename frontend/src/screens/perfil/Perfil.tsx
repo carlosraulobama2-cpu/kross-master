@@ -3,6 +3,7 @@ import { FlatList, ScrollView, StyleSheet, View } from 'react-native';
 import { useAviso } from '../../components/aviso';
 import { Boton, Chip, Fila, Icono, Insignia, Pulsable, T, type NombreIcono } from '../../components/base';
 import { IDIOMAS, useT } from '../../lib/i18n';
+import { plural } from '../../lib/formato';
 import { TarjetaEvento } from '../../components/evento';
 import { Pantalla, TituloSeccion } from '../../components/pantalla';
 import { api, mensajeDe } from '../../lib/api';
@@ -11,6 +12,7 @@ import { useAuth } from '../../lib/auth';
 import { useEventosPuerta, useFavoritos, useNotificaciones, useSiguiendo } from '../../lib/consultas';
 import type { PropsPestana } from '../../navigation/tipos';
 import { color, espacio, radio } from '../../theme';
+import { traducir as tx } from '../../lib/i18n';
 
 function Opcion({ icono, texto, detalle, onPress, peligro, contador }: { icono: NombreIcono; texto: string; detalle?: string; onPress: () => void; peligro?: boolean; contador?: number }) {
   return (
@@ -54,15 +56,15 @@ export function PerfilScreen({ navigation }: PropsPestana<'Perfil'>) {
 
   const legales = (
     <Grupo>
-      <Opcion icono="document-text-outline" texto="Términos y condiciones" onPress={() => navigation.navigate('Legal', { doc: 'terminos' })} />
-      <Opcion icono="lock-closed-outline" texto="Privacidad" onPress={() => navigation.navigate('Legal', { doc: 'privacidad' })} />
-      <Opcion icono="help-buoy-outline" texto="Centro de ayuda" detalle="Preguntas frecuentes y contacto" onPress={() => navigation.navigate('Ayuda')} />
+      <Opcion icono="document-text-outline" texto={tx('Términos y condiciones')} onPress={() => navigation.navigate('Legal', { doc: 'terminos' })} />
+      <Opcion icono="lock-closed-outline" texto={tx('Privacidad')} onPress={() => navigation.navigate('Legal', { doc: 'privacidad' })} />
+      <Opcion icono="help-buoy-outline" texto={tx('Centro de ayuda')} detalle="Preguntas frecuentes y contacto" onPress={() => navigation.navigate('Ayuda')} />
     </Grupo>
   );
 
   const selectorIdioma = (
     <>
-      <TituloSeccion titulo="Idioma" />
+      <TituloSeccion titulo={tx('Idioma')} />
       <Fila gap={espacio.s} style={{ flexWrap: 'wrap' }}>
         {IDIOMAS.map((i) => (
           <Chip key={i.id} texto={i.nombre} activo={idioma === i.id} onPress={() => cambiarIdioma(i.id)} />
@@ -74,21 +76,21 @@ export function PerfilScreen({ navigation }: PropsPestana<'Perfil'>) {
   if (!usuario) {
     return (
       <Pantalla>
-        <T v="titulo">Perfil</T>
+        <T v="titulo">{tx('Perfil')}</T>
         <View style={s.invitado}>
           <View style={s.avatarGrande}>
             <Icono n="person" tam={36} c={color.texto2} />
           </View>
           <T v="subtitulo" centro>
-            Entra en Kroos Master
+            {tx('Entra en Kroos Master')}
           </T>
           <T c="texto2" centro>
-            Guarda favoritos, compra en un toque y lleva tus entradas siempre contigo.
+            {tx('Guarda favoritos, compra en un toque y lleva tus entradas siempre contigo.')}
           </T>
           <View style={{ alignSelf: 'stretch', gap: espacio.s, marginTop: espacio.s }}>
-            <Boton onPress={() => navigation.navigate('Acceso', { modo: 'registro' })}>Crear cuenta</Boton>
+            <Boton onPress={() => navigation.navigate('Acceso', { modo: 'registro' })}>{tx('Crear cuenta')}</Boton>
             <Boton v="secundario" onPress={() => navigation.navigate('Acceso', { modo: 'entrar' })}>
-              Ya tengo cuenta
+              {tx('Ya tengo cuenta')}
             </Boton>
           </View>
         </View>
@@ -104,7 +106,7 @@ export function PerfilScreen({ navigation }: PropsPestana<'Perfil'>) {
 
   return (
     <Pantalla>
-      <Pulsable onPress={() => navigation.navigate('EditarPerfil')} style={s.cabecera} escala={0.99} accessibilityLabel="Editar perfil">
+      <Pulsable onPress={() => navigation.navigate('EditarPerfil')} style={s.cabecera} escala={0.99} accessibilityLabel={tx('Editar perfil')}>
         <View style={s.avatar}>
           <T v="subtitulo" c="acentoTexto">
             {iniciales}
@@ -112,14 +114,14 @@ export function PerfilScreen({ navigation }: PropsPestana<'Perfil'>) {
         </View>
         <View style={{ flex: 1, gap: 2 }}>
           <T v="subtitulo" numberOfLines={1}>
-            {usuario.nombre || 'Tu perfil'}
+            {usuario.nombre || tx('Tu perfil')}
           </T>
           <T v="nota" c="texto2" numberOfLines={1}>
             {usuario.email}
           </T>
           {organizador && (
             <View style={{ marginTop: 4 }}>
-              <Insignia texto={usuario.rol === 'admin' ? 'Admin' : usuario.nombre_artistico || 'Organizador'} tono="acento" icono="star" />
+              <Insignia texto={usuario.rol === 'admin' ? tx('Admin') : usuario.nombre_artistico || 'Organizador'} tono="acento" icono="star" />
             </View>
           )}
         </View>
@@ -129,9 +131,9 @@ export function PerfilScreen({ navigation }: PropsPestana<'Perfil'>) {
       {!organizador && (
         <Pulsable onPress={() => navigation.navigate('HacerseOrganizador')} style={s.promo} escala={0.98}>
           <View style={{ flex: 1, gap: 4 }}>
-            <T v="cabecera">¿Organizas eventos?</T>
+            <T v="cabecera">{tx('¿Organizas eventos?')}</T>
             <T v="nota" c="texto2">
-              Vende entradas con QR seguro, cobra al momento y controla el acceso desde el móvil.
+              {tx('Vende entradas con QR seguro, cobra al momento y controla el acceso desde el móvil.')}
             </T>
           </View>
           <View style={s.promoIcono}>
@@ -142,26 +144,26 @@ export function PerfilScreen({ navigation }: PropsPestana<'Perfil'>) {
 
       {organizador && (
         <>
-          <TituloSeccion titulo="Organizador" />
+          <TituloSeccion titulo={tx('Organizador')} />
           <Grupo>
-            <Opcion icono="stats-chart-outline" texto="Mis eventos y ventas" onPress={() => navigation.navigate('Organizador')} />
-            <Opcion icono="add-circle-outline" texto="Crear evento" onPress={() => navigation.navigate('EventoForm')} />
+            <Opcion icono="stats-chart-outline" texto={tx('Mis eventos y ventas')} onPress={() => navigation.navigate('Organizador')} />
+            <Opcion icono="add-circle-outline" texto={tx('Crear evento')} onPress={() => navigation.navigate('EventoForm')} />
           </Grupo>
         </>
       )}
 
       {(organizador || (puerta?.length ?? 0) > 0) && (
         <>
-          <TituloSeccion titulo="Puerta" />
+          <TituloSeccion titulo={tx('Puerta')} />
           <Grupo>
-            <Opcion icono="scan-outline" texto="Escanear entradas" detalle={puerta?.length ? `${puerta.length} evento${puerta.length === 1 ? '' : 's'} disponibles` : undefined} onPress={() => navigation.navigate('Puerta')} />
+            <Opcion icono="scan-outline" texto={tx('Escanear entradas')} detalle={puerta?.length ? plural(puerta.length, 'evento disponible', 'eventos disponibles') : undefined} onPress={() => navigation.navigate('Puerta')} />
           </Grupo>
         </>
       )}
 
       {(favoritos?.length ?? 0) > 0 && (
         <>
-          <TituloSeccion titulo="Guardados" />
+          <TituloSeccion titulo={tx('Guardados')} />
           <FlatList
             horizontal
             data={favoritos}
@@ -176,7 +178,7 @@ export function PerfilScreen({ navigation }: PropsPestana<'Perfil'>) {
 
       {((siguiendo?.artistas.length ?? 0) > 0 || (siguiendo?.recintos.length ?? 0) > 0) && (
         <>
-          <TituloSeccion titulo="Siguiendo" />
+          <TituloSeccion titulo={tx('Siguiendo')} />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -espacio.xl }} contentContainerStyle={{ paddingHorizontal: espacio.xl, gap: espacio.s }}>
             {siguiendo?.artistas.map((a) => (
               <Pulsable key={a.id} onPress={() => navigation.navigate('Artista', { id: a.id })} style={s.seguido}>
@@ -204,20 +206,20 @@ export function PerfilScreen({ navigation }: PropsPestana<'Perfil'>) {
         </>
       )}
 
-      <TituloSeccion titulo="Cuenta" />
+      <TituloSeccion titulo={tx('Cuenta')} />
       <Grupo>
-        <Opcion icono="receipt-outline" texto="Mis pedidos" detalle="Compras y recibos" onPress={() => navigation.navigate('Pedidos')} />
-        <Opcion icono="notifications-outline" texto="Notificaciones" contador={sinLeer} onPress={() => navigation.navigate('Notificaciones')} />
-        <Opcion icono="person-outline" texto="Datos personales" onPress={() => navigation.navigate('EditarPerfil')} />
+        <Opcion icono="receipt-outline" texto={tx('Mis pedidos')} detalle="Compras y recibos" onPress={() => navigation.navigate('Pedidos')} />
+        <Opcion icono="notifications-outline" texto={tx('Notificaciones')} contador={sinLeer} onPress={() => navigation.navigate('Notificaciones')} />
+        <Opcion icono="person-outline" texto={tx('Datos personales')} onPress={() => navigation.navigate('EditarPerfil')} />
       </Grupo>
 
-      <TituloSeccion titulo="Ayuda" />
+      <TituloSeccion titulo={tx('Ayuda')} />
       {legales}
       {selectorIdioma}
 
       <View style={{ marginTop: espacio.xxl, gap: espacio.s }}>
         <Grupo>
-          <Opcion icono="log-out-outline" texto="Cerrar sesión" peligro onPress={() => void salir()} />
+          <Opcion icono="log-out-outline" texto={tx('Cerrar sesión')} peligro onPress={() => void salir()} />
         </Grupo>
         <Pulsable
           style={{ alignSelf: 'center', padding: espacio.m }}
@@ -227,18 +229,18 @@ export function PerfilScreen({ navigation }: PropsPestana<'Perfil'>) {
             try {
               await api('/me', { method: 'DELETE' });
               await salir();
-              avisar('Tu cuenta se ha eliminado', 'info');
+              avisar(tx('Tu cuenta se ha eliminado'), 'info');
             } catch (e) {
               avisar(mensajeDe(e), 'error');
             }
           }}
         >
           <T v="nota" c="texto3">
-            Eliminar cuenta
+            {tx('Eliminar cuenta')}
           </T>
         </Pulsable>
         <T v="nota" c="texto3" centro>
-          Kroos Master {version}
+          {tx('Kroos Master {0}', { 0: version })}
         </T>
       </View>
     </Pantalla>

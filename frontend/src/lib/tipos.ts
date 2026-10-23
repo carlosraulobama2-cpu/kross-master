@@ -186,6 +186,7 @@ export interface Pedido {
   es_reventa: boolean;
   canal: 'app' | 'taquilla' | 'invitacion' | 'reventa';
   extras_centimos: number;
+  asientos: { seccion: string; fila: string; numero: number }[];
   extras: { cantidad: number; precio_unitario_centimos: number; codigo: string; canjeado_en: string | null; extra: { id: string; nombre: string; tipo: TipoExtra } }[];
   recibo_url: string | null;
   reclamacion: { estado: 'pendiente' | 'aprobada' | 'rechazada'; respuesta: string | null; creado_en: string } | null;

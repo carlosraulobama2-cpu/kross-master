@@ -5,6 +5,7 @@ import type { Entrada } from '../lib/tipos';
 import { color, espacio, radio } from '../theme';
 import { Fila, Icono, Insignia, Pulsable, T } from './base';
 import { ImagenEvento } from './evento';
+import { traducir as tx } from '../lib/i18n';
 
 const ESTADO: Record<Entrada['estado'], { texto: string; tono: 'acento' | 'neutro' | 'peligro' | 'info' } | null> = {
   valida: null,
@@ -64,7 +65,7 @@ export function BilleteEvento({ entradas, onPress }: { entradas: Entrada[]; onPr
           )}
         </View>
         {estado ? (
-          <Insignia texto={estado.texto} tono={estado.tono} />
+          <Insignia texto={tx(estado.texto)} tono={estado.tono} />
         ) : (
           <View style={s.qr}>
             <Icono n="qr-code" tam={22} c={color.acentoTexto} />

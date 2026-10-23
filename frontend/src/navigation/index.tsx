@@ -35,6 +35,7 @@ import { InvitacionesScreen } from '../screens/organizador/Invitaciones';
 import { TaquillaScreen } from '../screens/organizador/Taquilla';
 import { TramoAvanzadoScreen } from '../screens/organizador/TramoAvanzado';
 import { AyudaScreen } from '../screens/perfil/Ayuda';
+import { traducir as tx } from '../lib/i18n';
 
 const Stack = createNativeStackNavigator<Rutas>();
 const Tabs = createBottomTabNavigator<Pestanas>();
@@ -55,7 +56,8 @@ function BarraPestanas({ state, navigation }: BottomTabBarProps) {
     <View style={[s.barra, { paddingBottom: Math.max(insets.bottom, espacio.s) }]}>
       {state.routes.map((ruta, i) => {
         const activa = state.index === i;
-        const [inactivo, activo, etiqueta] = ICONOS[ruta.name as keyof Pestanas];
+        const [inactivo, activo, nombre] = ICONOS[ruta.name as keyof Pestanas];
+        const etiqueta = tx(nombre);
         return (
           <Pulsable
             key={ruta.key}
