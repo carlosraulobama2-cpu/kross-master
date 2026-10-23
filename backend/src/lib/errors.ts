@@ -29,6 +29,12 @@ const ERRORES_SQL: Record<string, AppError> = {
   COLA_TURNO: conflicto('COLA_TURNO', 'Hay mucha demanda: entra en la cola virtual para comprar'),
   REVENTA_NO_PERMITIDA: conflicto('REVENTA_NO_PERMITIDA', 'Esta entrada no se puede poner en reventa'),
   REVENTA_NO_CANCELABLE: conflicto('REVENTA_NO_CANCELABLE', 'Esta entrada ya no está en reventa'),
+  ASIENTO_OCUPADO: conflicto('ASIENTO_OCUPADO', 'Alguna de las butacas elegidas ya no está libre. Elige otras'),
+  FASE_NO_ABIERTA: conflicto('FASE_NO_ABIERTA', 'Este tipo de entrada abrirá cuando se agote el anterior'),
+  EXTRA_NO_DISPONIBLE: conflicto('EXTRA_NO_DISPONIBLE', 'Algún extra ya no está disponible'),
+  CUPO_INVITACIONES: conflicto('CUPO_INVITACIONES', 'Has alcanzado el cupo de invitaciones de este evento'),
+  PLANO_CON_VENTAS: conflicto('PLANO_CON_VENTAS', 'No se puede cambiar el plano de un tipo de entrada con ventas'),
+  PLANO_INVALIDO: peticionInvalida('PLANO_INVALIDO', 'El plano debe tener entre 1 y 60 filas y entre 1 y 100 butacas por fila'),
   LIMITE_POR_USUARIO: conflicto('LIMITE_POR_USUARIO', 'Has alcanzado el máximo de entradas por persona para este evento'),
 };
 

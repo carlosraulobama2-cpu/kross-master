@@ -131,7 +131,7 @@ adminRouter.get('/pedidos', async (req, res) => {
     .from('pedidos')
     .select(
       'id, estado, subtotal_centimos, gastos_centimos, total_centimos, moneda, creado_en, pagado_en, stripe_payment_intent_id, ' +
-        'usuario:usuarios(id, nombre, email), evento:eventos(id, titulo), items:pedido_items(cantidad)',
+        'usuario:usuarios!pedidos_usuario_id_fkey(id, nombre, email), evento:eventos(id, titulo), items:pedido_items(cantidad)',
       { count: 'exact' },
     )
     .order('creado_en', { ascending: false });
@@ -229,4 +229,68 @@ adminRouter.post('/reclamaciones/:id', async (req, res) => {
   ok(await db.from('reclamaciones_seguro').update({ estado: decision, respuesta, resuelta_en: new Date().toISOString(), resuelta_por: yo.id }).eq('id', id));
   await auditar(yo.id, `admin.reclamacion_${decision}`, 'pedido', r.pedido.id, { respuesta });
   res.status(204).end();
+});
+
+// --- Centro de ayuda: FAQs y consultas ---------------------------------
+
+const faqSchema = z.object({
+  categoria: z.string().trim().min(2).max(40).default('General'),
+  pregunta: z.string().trim().min(5).max(200),
+  respuesta: z.string().trim().min(5).max(3000),
+  orden: z.number().int().min(0).max(1000).default(0),
+  activo: z.boolean().default(true),
+});
+
+adminRouter.get('/faqs', async (_req, res) => {
+  res.json({ faqs: ok(await db.from('faqs').select('*').order('categoria').order('orden')) });
+});
+
+adminRouter.post('/faqs', async (req, res) => {
+  const faq = ok(await db.from('faqs').insert(body(req, faqSchema)).select().single());
+  await auditar(usuarioDe(req).id, 'faq.crear', 'faq', faq.id);
+  res.status(201).json({ faq });
+});
+
+adminRouter.patch('/faqs/:id', async (req, res) => {
+  const { id } = params(req, idParam);
+  const faq = ok(await db.from('faqs').update(body(req, faqSchema.partial())).eq('id', id).select().maybeSingle());
+  if (!faq) throw noEncontrado('Pregunta');
+  res.json({ faq });
+});
+
+adminRouter.delete('/faqs/:id', async (req, res) => {
+  const { id } = params(req, idParam);
+  ok(await db.from('faqs').delete().eq('id', id));
+  await auditar(usuarioDe(req).id, 'faq.borrar', 'faq', id);
+  res.status(204).end();
+});
+
+adminRouter.get('/soporte', async (req, res) => {
+  const f = query(req, paginacion.extend({ estado: z.enum(['abierta', 'respondida', 'cerrada']).optional() }));
+  let consulta = db
+    .from('consultas_soporte')
+    .select('*, usuario:usuarios(id, nombre), pedido:pedidos(id, total_centimos, estado, evento:eventos(titulo))', { count: 'exact' })
+    .order('creado_en', { ascending: false });
+  if (f.estado) consulta = consulta.eq('estado', f.estado);
+  const [desde, hasta] = rango(f);
+  const { data, count, error } = await consulta.range(desde, hasta);
+  if (error) throw error;
+  res.json({ consultas: data, total: count ?? 0 });
+});
+
+adminRouter.post('/soporte/:id', async (req, res) => {
+  const { id } = params(req, idParam);
+  const yo = usuarioDe(req);
+  const d = body(req, z.object({ respuesta: z.string().trim().min(5).max(3000).optional(), cerrar: z.boolean().default(false) }));
+  if (!d.respuesta && !d.cerrar) throw new AppError(400, 'DATOS_INVALIDOS', 'Escribe una respuesta o cierra la consulta');
+  const actual = ok(await db.from('consultas_soporte').select('usuario_id, asunto').eq('id', id).maybeSingle());
+  if (!actual) throw noEncontrado('Consulta');
+  const cambios: Record<string, unknown> = { estado: d.cerrar ? 'cerrada' : 'respondida' };
+  if (d.respuesta) Object.assign(cambios, { respuesta: d.respuesta, respondida_en: new Date().toISOString() });
+  const consulta = ok(await db.from('consultas_soporte').update(cambios).eq('id', id).select().single());
+  if (d.respuesta && actual.usuario_id) {
+    await notificar(actual.usuario_id, { titulo: `Respuesta: ${actual.asunto}`, cuerpo: d.respuesta.slice(0, 180), tipo: 'soporte', datos: { consultaId: id } });
+  }
+  await auditar(yo.id, 'soporte.responder', 'consulta', id, { cerrar: d.cerrar });
+  res.json({ consulta });
 });

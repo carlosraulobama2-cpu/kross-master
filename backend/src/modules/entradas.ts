@@ -14,8 +14,8 @@ entradasRouter.use(requireAuth);
 
 const CAMPOS_ENTRADA =
   'id, codigo, estado, es_acompanante, usada_en, creado_en, qr_semilla, pedido_id, ' +
-  'evento:eventos(id, titulo, categoria, inicia_en, termina_en, recinto, direccion, ciudad, imagen_url, estado), ' +
-  'tramo:tramos(id, nombre, accesible), reventas(estado, precio_centimos)';
+  'evento:eventos(id, titulo, categoria, inicia_en, termina_en, recinto, direccion, ciudad, imagen_url, estado, fecha_original, reembolso_aplazamiento_hasta), ' +
+  'tramo:tramos(id, nombre, accesible), reventas(estado, precio_centimos), asiento:asientos!entradas_asiento_id_fkey(seccion, fila, numero)';
 
 interface FilaEntrada {
   id: string;

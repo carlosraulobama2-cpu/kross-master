@@ -187,6 +187,29 @@ select id, 'Preventa Fan Club', 'Abono 2 días a precio especial para el club de
 insert into public.codigos_promocionales (evento_id, codigo, descripcion, tipo, valor, usos_max)
 select id, 'OTONO10', '10 % de descuento de otoño', 'porcentaje', 10, 200 from public.eventos where titulo like 'Luna Brava%';
 
+-- ---------- Butacas numeradas y extras (antes de las ventas) ----------
+-- El teatro vende con butaca: las ventas de demo reciben las mejores libres.
+select public.generar_asientos(t.id, 9, 20) from public.tramos t join public.eventos e on e.id = t.evento_id
+ where e.titulo = 'La casa de Bernarda Alba' and t.nombre = 'Platea';
+select public.generar_asientos(t.id, 6, 20) from public.tramos t join public.eventos e on e.id = t.evento_id
+ where e.titulo = 'La casa de Bernarda Alba' and t.nombre = 'Anfiteatro';
+
+insert into public.extras (evento_id, nombre, descripcion, tipo, precio_centimos, stock_total, max_por_pedido)
+select e.id, x.nombre, x.descripcion, x.tipo, x.precio, x.stock, x.maximo
+  from (values
+    ('Festival Sierra Sonora 2026', 'Parking oficial', 'Plaza para un coche los tres días, a 5 min a pie del recinto.', 'parking', 1600, 300, 1),
+    ('Festival Sierra Sonora 2026', 'Camiseta oficial', 'Algodón orgánico. Se recoge en el stand de merch.', 'merch', 2200, 500, 4),
+    ('Festival Sierra Sonora 2026', 'Acceso lounge VIP', 'Zona chill-out con barra propia y baños.', 'vip', 3500, 80, 2),
+    ('Costa Neón Festival', 'Parking playa', 'Plaza de coche los dos días.', 'parking', 1800, 200, 1),
+    ('Costa Neón Festival', 'Taquilla con candado', 'Guarda tus cosas en el recinto.', 'otro', 800, 150, 2),
+    ('Luna Brava · Gira «Mar de fondo»', 'Vinilo firmado', 'Edición limitada de «Mar de fondo», firmado por la banda.', 'merch', 2800, 60, 2),
+    ('CD Olivares vs Atlético Sierra', 'Parking estadio', 'Aparcamiento vigilado junto a la tribuna.', 'parking', 500, 120, 1)
+  ) as x(titulo, nombre, descripcion, tipo, precio, stock, maximo)
+  join public.eventos e on e.titulo = x.titulo;
+
+-- Cupo de invitaciones para todos los eventos.
+update public.eventos set cupo_invitaciones = 20;
+
 -- ---------- Ventas de los últimos 30 días ----------
 -- Se crean con las mismas funciones que usa la API, y luego se reparten en el tiempo.
 do $$
@@ -301,3 +324,81 @@ end $$;
 -- Cola virtual en el festival y registro de fans abierto en el Costa Neón.
 update public.eventos set cola_activa = true, cola_ritmo = 200 where titulo = 'Festival Sierra Sonora 2026';
 update public.eventos set registro_fan_activo = true where titulo = 'Costa Neón Festival';
+
+-- ---------- Tanda 3: fases, taquilla, invitaciones, aplazamiento y ayuda ----------
+-- Fases automáticas en el Warehouse: cada ola abre al agotarse la anterior.
+update public.tramos t set fase_anterior_id = p.id
+  from public.tramos p join public.eventos e on e.id = p.evento_id
+ where e.titulo = 'Warehouse: 12 horas de techno' and p.nombre = 'Primera ola' and t.evento_id = e.id and t.nombre = 'Segunda ola';
+insert into public.tramos (evento_id, nombre, descripcion, precio_centimos, cantidad_total, max_por_pedido, orden, fase_anterior_id)
+select e.id, 'Tercera ola', 'Abre al agotarse la segunda ola', 2500, 400, 6, 3, t.id
+  from public.eventos e join public.tramos t on t.evento_id = e.id and t.nombre = 'Segunda ola'
+ where e.titulo = 'Warehouse: 12 horas de techno';
+
+do $$
+declare
+  sala uuid := (select id from public.usuarios where email = 'sala@kroosmaster.dev');
+  promo uuid := (select id from public.usuarios where email = 'promotora@kroosmaster.dev');
+  fan uuid := (select id from public.usuarios where email = 'fan@kroosmaster.dev');
+  ev uuid;
+  ped public.pedidos;
+begin
+  -- Ventas en taquilla del monólogo (efectivo y Bizum).
+  ev := (select id from public.eventos where titulo = 'Monólogos en el Mercado');
+  ped := public.reservar_pedido(sala, ev, (select jsonb_build_array(jsonb_build_object('tramo_id', id, 'cantidad', 2)) from public.tramos where evento_id = ev),
+                                null, null, false, '[]', 'taquilla', sala);
+  perform public.confirmar_pedido(ped.id, null);
+  update public.pedidos set metodo_pago = 'efectivo' where id = ped.id;
+  update public.entradas set titular_nombre = 'Venta en taquilla' where pedido_id = ped.id;
+  ped := public.reservar_pedido(sala, ev, (select jsonb_build_array(jsonb_build_object('tramo_id', id, 'cantidad', 1)) from public.tramos where evento_id = ev),
+                                null, null, false, '[]', 'taquilla', sala);
+  perform public.confirmar_pedido(ped.id, null);
+  update public.pedidos set metodo_pago = 'bizum' where id = ped.id;
+  update public.entradas set titular_nombre = 'Marta R.' where pedido_id = ped.id;
+
+  -- Invitación de la sala a fan3 para Luna Brava.
+  ev := (select id from public.eventos where titulo like 'Luna Brava%');
+  ped := public.reservar_pedido((select id from public.usuarios where email = 'fan3@kroosmaster.dev'), ev,
+                                (select jsonb_build_array(jsonb_build_object('tramo_id', id, 'cantidad', 2)) from public.tramos where evento_id = ev and nombre = 'Anticipada'),
+                                null, null, false, '[]', 'invitacion', sala);
+  perform public.confirmar_pedido(ped.id, null);
+  update public.pedidos set metodo_pago = 'gratis' where id = ped.id;
+
+  -- El fan de demo tiene entradas de un concierto que se aplaza y una compra con parking.
+  ev := (select id from public.eventos where titulo = 'Atardecer Sinfónico en la Alhambra');
+  ped := public.reservar_pedido(fan, ev, (select jsonb_build_array(jsonb_build_object('tramo_id', id, 'cantidad', 2)) from public.tramos where evento_id = ev and nombre = 'Zona B'));
+  perform public.confirmar_pedido(ped.id, 'pi_demo_fan_3');
+  update public.eventos
+     set fecha_original = inicia_en,
+         inicia_en = inicia_en + interval '21 days',
+         termina_en = termina_en + interval '21 days',
+         reembolso_aplazamiento_hasta = now() + interval '14 days'
+   where id = ev;
+  insert into public.notificaciones (usuario_id, titulo, cuerpo, tipo, datos) values
+    (fan, 'Atardecer Sinfónico en la Alhambra se aplaza', 'Tus entradas siguen valiendo para la nueva fecha. Si no puedes ir, pide el reembolso desde tu pedido en los próximos 14 días.', 'evento', jsonb_build_object('eventoId', ev));
+
+  ev := (select id from public.eventos where titulo = 'CD Olivares vs Atlético Sierra');
+  ped := public.reservar_pedido(fan, ev, (select jsonb_build_array(jsonb_build_object('tramo_id', id, 'cantidad', 1)) from public.tramos where evento_id = ev and nombre = 'Tribuna'),
+                                null, null, false, (select jsonb_build_array(jsonb_build_object('extra_id', id, 'cantidad', 1)) from public.extras where evento_id = ev));
+  perform public.confirmar_pedido(ped.id, 'pi_demo_fan_4');
+end $$;
+
+-- Centro de ayuda.
+update public.configuracion set email_soporte = 'ayuda@kroosmaster.dev' where id = 1;
+insert into public.faqs (categoria, pregunta, respuesta, orden) values
+  ('Compras', '¿El precio que veo es el final?', 'Sí. Desde el primer momento mostramos el precio con los gastos de gestión incluidos. Lo único que puedes añadir tú es la protección de reembolso o algún extra (parking, merch…).', 1),
+  ('Compras', '¿Cuánto tiempo tengo para pagar?', 'Al elegir tus entradas las reservamos unos minutos. Si no completas el pago a tiempo, vuelven a la venta y puedes intentarlo de nuevo.', 2),
+  ('Compras', '¿Cómo uso un código promocional o de preventa?', 'En la ficha del evento, toca «Tengo un código». Los códigos promocionales aplican un descuento; los de preventa desbloquean entradas reservadas para fans.', 3),
+  ('Entradas', '¿Dónde están mis entradas?', 'En la pestaña Entradas. El código QR cambia cada 30 segundos para que no se pueda copiar con una captura: enséñalo desde la app en la puerta. También puedes añadirlo a Apple Wallet o Google Wallet.', 1),
+  ('Entradas', '¿Puedo pasar una entrada a un amigo?', 'Sí, desde la entrada toca «Transferir» e indica su email. La recibirá en su cuenta y la tuya dejará de ser válida.', 2),
+  ('Entradas', 'Mi evento tiene butaca numerada, ¿puedo elegirla?', 'Sí. Al elegir ese tipo de entrada verás el plano: toca tus butacas o usa «Mejor sitio» y te damos las mejores juntas que queden.', 3),
+  ('Reembolsos', '¿Qué pasa si cancelan el evento?', 'Te devolvemos el importe completo automáticamente en el mismo método de pago. No tienes que hacer nada.', 1),
+  ('Reembolsos', '¿Y si el evento se aplaza?', 'Tus entradas valen para la nueva fecha. Si no puedes ir, abre el pedido y pide el reembolso antes de la fecha límite que te indicamos.', 2),
+  ('Reembolsos', '¿Qué cubre la protección de reembolso?', 'Si no puedes asistir por enfermedad, accidente u otra causa justificada, abre una reclamación desde el pedido y te devolvemos el precio de las entradas.', 3),
+  ('Reventa', '¿Puedo revender una entrada que no voy a usar?', 'Sí, en la reventa oficial y siempre al precio original. Cuando otro fan la compra, recibes el dinero y tu entrada se anula.', 1),
+  ('Cuenta', '¿Cómo cambio el idioma de la app?', 'En Perfil > Idioma puedes elegir español, inglés o catalán.', 1),
+  ('Organizadores', '¿Cómo vendo en taquilla el día del evento?', 'Desde Gestionar evento > Taquilla: elige las entradas, el método de pago (efectivo, datáfono o Bizum) y se emiten al momento. Puedes validarlas en ese mismo paso.', 1);
+
+insert into public.consultas_soporte (usuario_id, email, asunto, mensaje)
+select id, email, 'No me llega el email de confirmación', 'Compré dos entradas ayer y las veo en la app, pero no me ha llegado ningún email. ¿Es normal?'
+  from public.usuarios where email = 'fan5@kroosmaster.dev';

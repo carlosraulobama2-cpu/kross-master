@@ -8,7 +8,7 @@ import { stripe } from '../lib/stripe';
 import { db, ok } from '../lib/supabase';
 import { requireAuth, usuarioDe } from '../middleware/auth';
 import { body, params } from '../middleware/validate';
-import { confirmarPagoPedido, type Pedido } from '../services/pagos';
+import { confirmarPagoPedido, reembolsarPedido, type Pedido } from '../services/pagos';
 import { urlRecibo } from './recibos';
 
 export const pedidosRouter = Router();
@@ -17,20 +17,20 @@ pedidosRouter.use(requireAuth);
 const crearSchema = z.object({
   eventoId: uuid,
   items: z
-    .array(z.object({ tramoId: uuid, cantidad: z.number().int().min(1).max(50) }))
-    .min(1, 'Elige al menos una entrada')
+    .array(z.object({ tramoId: uuid, cantidad: z.number().int().min(1).max(50), asientos: z.array(uuid).max(50).optional() }))
     .max(10)
     .refine((items) => new Set(items.map((i) => i.tramoId)).size === items.length, 'Tipos de entrada repetidos'),
   codigo: z.string().trim().toUpperCase().max(30).optional(),
   codigoAcceso: z.string().trim().toUpperCase().max(30).optional(),
   seguro: z.boolean().default(false),
-});
+  extras: z.array(z.object({ extraId: uuid, cantidad: z.number().int().min(1).max(20) })).max(10).default([]),
+}).refine((d) => d.items.length + d.extras.length > 0, 'Elige al menos una entrada o un extra');
 
 const limiteCompras = rateLimit({ windowMs: 60 * 1000, limit: 10, standardHeaders: 'draft-8', legacyHeaders: false });
 
 pedidosRouter.post('/', limiteCompras, async (req, res) => {
   const yo = usuarioDe(req);
-  const { eventoId, items, codigo, codigoAcceso, seguro } = body(req, crearSchema);
+  const { eventoId, items, codigo, codigoAcceso, seguro, extras } = body(req, crearSchema);
 
   // Un pedido abierto por evento: si había otro pendiente se libera su stock.
   const abiertos = ok(
@@ -44,10 +44,11 @@ pedidosRouter.post('/', limiteCompras, async (req, res) => {
   const { data, error } = await db.rpc('reservar_pedido', {
     p_usuario_id: yo.id,
     p_evento_id: eventoId,
-    p_items: items.map((i) => ({ tramo_id: i.tramoId, cantidad: i.cantidad })),
+    p_items: items.map((i) => ({ tramo_id: i.tramoId, cantidad: i.cantidad, ...(i.asientos?.length ? { asientos: i.asientos } : {}) })),
     p_codigo: codigo || null,
     p_codigo_acceso: codigoAcceso || null,
     p_seguro: seguro,
+    p_extras: extras.map((x) => ({ extra_id: x.extraId, cantidad: x.cantidad })),
   });
   if (error) throw errorDesdeSql(error);
   const pedido = data as Pedido;
@@ -120,9 +121,10 @@ async function detallePedido(pedidoId: string, usuarioId: string) {
     await db
       .from('pedidos')
       .select(
-        'id, estado, es_reventa, subtotal_centimos, descuento_centimos, gastos_centimos, seguro_centimos, total_centimos, moneda, expira_en, pagado_en, creado_en, stripe_payment_intent_id, ' +
-          'evento:eventos(id, titulo, categoria, inicia_en, recinto, ciudad, imagen_url), ' +
-          'items:pedido_items(cantidad, precio_unitario_centimos, tramo:tramos(id, nombre)), reclamacion:reclamaciones_seguro(estado, respuesta, creado_en)',
+        'id, estado, es_reventa, canal, subtotal_centimos, descuento_centimos, extras_centimos, gastos_centimos, seguro_centimos, total_centimos, moneda, expira_en, pagado_en, creado_en, stripe_payment_intent_id, ' +
+          'evento:eventos(id, titulo, categoria, inicia_en, recinto, ciudad, imagen_url, fecha_original, reembolso_aplazamiento_hasta), ' +
+          'items:pedido_items(cantidad, precio_unitario_centimos, tramo:tramos(id, nombre)), reclamacion:reclamaciones_seguro(estado, respuesta, creado_en), ' +
+          'extras:pedido_extras(cantidad, precio_unitario_centimos, codigo, canjeado_en, extra:extras(id, nombre, tipo))',
       )
       .eq('id', pedidoId)
       .eq('usuario_id', usuarioId)
@@ -210,4 +212,20 @@ pedidosRouter.post('/:id/reclamacion', async (req, res) => {
   if (error?.code === '23505') throw new AppError(409, 'YA_RECLAMADO', 'Ya has enviado una reclamación para este pedido');
   if (error) throw error;
   res.status(201).json({ reclamacion: data });
+});
+
+/** Evento aplazado: el comprador puede pedir el reembolso dentro del plazo. */
+pedidosRouter.post('/:id/reembolso-aplazamiento', async (req, res) => {
+  const { id } = params(req, idParam);
+  const yo = usuarioDe(req);
+  const pedido = ok(
+    await db.from('pedidos').select('estado, evento:eventos(reembolso_aplazamiento_hasta)').eq('id', id).eq('usuario_id', yo.id).maybeSingle(),
+  ) as unknown as { estado: string; evento: { reembolso_aplazamiento_hasta: string | null } } | null;
+  if (!pedido) throw noEncontrado('Pedido');
+  const hasta = pedido.evento.reembolso_aplazamiento_hasta;
+  if (!hasta || new Date(hasta).getTime() < Date.now()) {
+    throw new AppError(409, 'FUERA_DE_PLAZO', 'Este evento no tiene un plazo de reembolso abierto');
+  }
+  await reembolsarPedido(id, yo.id, 'Reembolso solicitado por aplazamiento del evento.');
+  res.status(204).end();
 });

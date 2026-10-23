@@ -10,6 +10,8 @@ import { artistasRouter, recintosRouter } from './modules/artistas';
 import { authRouter } from './modules/auth';
 import { entradasRouter, transferenciasRouter } from './modules/entradas';
 import { eventosRouter } from './modules/eventos';
+import { ayudaRouter } from './modules/ayuda';
+import { exportesRouter } from './modules/exportes';
 import { legalRouter } from './modules/legal';
 import { meRouter } from './modules/me';
 import { organizadorRouter } from './modules/organizador';
@@ -59,6 +61,8 @@ export function crearApp() {
   app.use('/api/organizador', organizadorRouter);
   app.use('/api/admin', adminRouter);
   app.use('/api/legal', legalRouter);
+  app.use('/api/ayuda', ayudaRouter);
+  app.use('/api/exportes', exportesRouter);
 
   app.use(noEncontradoHandler);
   app.use(errorHandler);

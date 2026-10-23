@@ -29,7 +29,7 @@ recibosRouter.get('/:id', async (req, res) => {
       .from('pedidos')
       .select(
         'id, estado, subtotal_centimos, descuento_centimos, gastos_centimos, total_centimos, pagado_en, creado_en, ' +
-          'usuario:usuarios(nombre, email), evento:eventos(titulo, inicia_en, recinto, ciudad), ' +
+          'usuario:usuarios!pedidos_usuario_id_fkey(nombre, email), evento:eventos(titulo, inicia_en, recinto, ciudad), ' +
           'items:pedido_items(cantidad, precio_unitario_centimos, tramo:tramos(nombre)), entradas(codigo, estado)',
       )
       .eq('id', id)

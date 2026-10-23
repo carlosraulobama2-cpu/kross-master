@@ -8,7 +8,10 @@ import { requireAuth, requireRol, usuarioDe } from '../middleware/auth';
 import { body, params, query } from '../middleware/validate';
 import { fijarArtistas, recintoPara, seguidoresDeEvento } from '../services/catalogo';
 import { notificar } from '../services/notificaciones';
-import { cancelarEvento } from '../services/pagos';
+import { firmarEnlace } from '../lib/firma';
+import { errorDesdeSql } from '../lib/errors';
+import { cancelarEvento, confirmarPagoPedido } from '../services/pagos';
+import { env } from '../config/env';
 import type { UsuarioSesion } from '../types';
 
 export const organizadorRouter = Router();
@@ -56,6 +59,8 @@ const tramoSchema = z.object({
     .optional(),
   accesible: z.boolean().optional(),
   incluye_acompanante: z.boolean().optional(),
+  // Fase automática: abre cuando se agota este otro tipo de entrada.
+  fase_anterior_id: uuid.nullable().optional(),
 });
 
 const textoInfo = z.string().trim().max(1000).nullable().optional();
@@ -77,6 +82,7 @@ const eventoBase = z.object({
   cola_activa: z.boolean().optional(),
   cola_ritmo: z.number().int().min(1).max(10000).optional(),
   registro_fan_activo: z.boolean().optional(),
+  cupo_invitaciones: z.number().int().min(0).max(10_000).optional(),
   artistas: z.array(z.string().trim().min(2).max(80)).max(20).optional(),
   // Información práctica del recinto (se guarda en el recinto, no en el evento).
   como_llegar: textoInfo,
@@ -124,6 +130,7 @@ const fechasTramo = (t: z.infer<typeof tramoSchema>) => ({
   accesible: t.accesible ?? false,
   incluye_acompanante: t.incluye_acompanante ?? false,
   codigo_acceso: t.codigo_acceso ?? null,
+  fase_anterior_id: t.fase_anterior_id ?? null,
   descripcion: t.descripcion ?? null,
   venta_inicia_en: t.venta_inicia_en?.toISOString() ?? null,
   venta_termina_en: t.venta_termina_en?.toISOString() ?? null,
@@ -275,6 +282,7 @@ organizadorRouter.patch('/eventos/:id/tramos/:tramoId', async (req, res) => {
   const { id, tramoId } = params(req, tramoParams);
   editable(await miEvento(usuarioDe(req), id));
   const cambios = body(req, tramoSchema.partial().extend({ activo: z.boolean().optional() }));
+  if (cambios.fase_anterior_id === tramoId) throw new AppError(400, 'FASE_INVALIDA', 'Un tipo de entrada no puede ser su propia fase anterior');
 
   const actual = ok(await db.from('tramos').select('cantidad_vendida, cantidad_reservada').eq('id', tramoId).eq('evento_id', id).maybeSingle());
   if (!actual) throw noEncontrado('Tipo de entrada');
@@ -446,4 +454,252 @@ organizadorRouter.post('/eventos/:id/sorteo', async (req, res) => {
   );
   await auditar(yo.id, 'evento.sorteo_fans', 'evento', id, { plazas, seleccionados: ids.length });
   res.json({ seleccionados: ids.length, no_seleccionados: (resto ?? []).length });
+});
+
+// --- Plano de butacas -------------------------------------------------
+
+organizadorRouter.post('/eventos/:id/tramos/:tramoId/plano', async (req, res) => {
+  const { id, tramoId } = params(req, tramoParams);
+  const yo = usuarioDe(req);
+  editable(await miEvento(yo, id));
+  const { filas, porFila, seccion } = body(
+    req,
+    z.object({ filas: z.number().int().min(1).max(60), porFila: z.number().int().min(1).max(100), seccion: z.string().trim().max(40).default('') }),
+  );
+  const tramo = ok(await db.from('tramos').select('id').eq('id', tramoId).eq('evento_id', id).maybeSingle());
+  if (!tramo) throw noEncontrado('Tipo de entrada');
+  const { data, error } = await db.rpc('generar_asientos', { p_tramo_id: tramoId, p_filas: filas, p_por_fila: porFila, p_seccion: seccion });
+  if (error) throw errorDesdeSql(error);
+  await auditar(yo.id, 'tramo.plano', 'evento', id, { tramo_id: tramoId, filas, porFila });
+  res.json({ asientos: data as number });
+});
+
+// --- Extras: parking, merch, VIP… ------------------------------------
+
+const extraSchema = z.object({
+  nombre: z.string().trim().min(2).max(60),
+  descripcion: z.string().trim().max(200).nullable().optional(),
+  tipo: z.enum(['parking', 'merch', 'vip', 'comida', 'otro']).default('otro'),
+  precio_centimos: z.number().int().min(0).max(1_000_000),
+  stock_total: z.number().int().min(1).max(100_000),
+  max_por_pedido: z.number().int().min(1).max(20).default(4),
+});
+
+organizadorRouter.get('/eventos/:id/extras', async (req, res) => {
+  const { id } = params(req, idParam);
+  await miEvento(usuarioDe(req), id);
+  res.json({ extras: ok(await db.from('extras').select('*').eq('evento_id', id).order('creado_en')) });
+});
+
+organizadorRouter.post('/eventos/:id/extras', async (req, res) => {
+  const { id } = params(req, idParam);
+  editable(await miEvento(usuarioDe(req), id));
+  const x = body(req, extraSchema);
+  const extra = ok(await db.from('extras').insert({ ...x, descripcion: x.descripcion ?? null, evento_id: id }).select().single());
+  res.status(201).json({ extra });
+});
+
+organizadorRouter.patch('/eventos/:id/extras/:extraId', async (req, res) => {
+  const { id, extraId } = params(req, z.object({ id: uuid, extraId: uuid }));
+  editable(await miEvento(usuarioDe(req), id));
+  const cambios = body(req, extraSchema.partial().extend({ activo: z.boolean().optional() }));
+  const actual = ok(await db.from('extras').select('stock_vendido, stock_reservado').eq('id', extraId).eq('evento_id', id).maybeSingle());
+  if (!actual) throw noEncontrado('Extra');
+  if (cambios.stock_total !== undefined && cambios.stock_total < actual.stock_vendido + actual.stock_reservado) {
+    throw new AppError(409, 'CANTIDAD_INSUFICIENTE', `Ya hay ${actual.stock_vendido + actual.stock_reservado} vendidos o reservados`);
+  }
+  const extra = ok(await db.from('extras').update(cambios).eq('id', extraId).select().single());
+  res.json({ extra });
+});
+
+organizadorRouter.delete('/eventos/:id/extras/:extraId', async (req, res) => {
+  const { id, extraId } = params(req, z.object({ id: uuid, extraId: uuid }));
+  await miEvento(usuarioDe(req), id);
+  const { data: vendido } = await db.from('pedido_extras').select('pedido_id').eq('extra_id', extraId).limit(1).maybeSingle();
+  if (vendido) ok(await db.from('extras').update({ activo: false }).eq('id', extraId));
+  else ok(await db.from('extras').delete().eq('id', extraId).eq('evento_id', id));
+  res.status(204).end();
+});
+
+// --- Invitaciones y taquilla ------------------------------------------
+
+const itemsEmision = z
+  .array(z.object({ tramoId: uuid, cantidad: z.number().int().min(1).max(50), asientos: z.array(uuid).max(50).optional() }))
+  .min(1, 'Elige al menos una entrada')
+  .max(10);
+
+/** Reserva y emite al momento un pedido sin pasar por Stripe. */
+async function emitirDirecto(opts: {
+  usuarioId: string;
+  eventoId: string;
+  items: z.infer<typeof itemsEmision>;
+  extras?: { extraId: string; cantidad: number }[];
+  canal: 'taquilla' | 'invitacion';
+  vendidoPor: string;
+  metodoPago: 'efectivo' | 'tarjeta' | 'bizum' | 'gratis';
+  titular?: string | null;
+}) {
+  const { data, error } = await db.rpc('reservar_pedido', {
+    p_usuario_id: opts.usuarioId,
+    p_evento_id: opts.eventoId,
+    p_items: opts.items.map((i) => ({ tramo_id: i.tramoId, cantidad: i.cantidad, ...(i.asientos?.length ? { asientos: i.asientos } : {}) })),
+    p_codigo: null,
+    p_codigo_acceso: null,
+    p_seguro: false,
+    p_extras: (opts.extras ?? []).map((x) => ({ extra_id: x.extraId, cantidad: x.cantidad })),
+    p_canal: opts.canal,
+    p_vendido_por: opts.vendidoPor,
+  });
+  if (error) throw errorDesdeSql(error);
+  const pedido = data as { id: string; total_centimos: number };
+  ok(await db.from('pedidos').update({ metodo_pago: opts.metodoPago }).eq('id', pedido.id));
+  await confirmarPagoPedido(pedido.id, null);
+  if (opts.titular) ok(await db.from('entradas').update({ titular_nombre: opts.titular }).eq('pedido_id', pedido.id));
+  return pedido;
+}
+
+/** Invitaciones (comps): gratis, dentro del cupo del evento, a una cuenta existente. */
+organizadorRouter.post('/eventos/:id/invitaciones', async (req, res) => {
+  const { id } = params(req, idParam);
+  const yo = usuarioDe(req);
+  const evento = await miEvento(yo, id);
+  editable(evento);
+  const { email, items, nota } = body(
+    req,
+    z.object({ email: z.string().trim().toLowerCase().email('Email no válido'), items: itemsEmision, nota: z.string().trim().max(200).optional() }),
+  );
+  const invitado = ok(await db.from('usuarios').select('id, nombre').eq('email', email).maybeSingle());
+  if (!invitado) throw new AppError(404, 'USUARIO_NO_ENCONTRADO', 'Esa persona debe crear una cuenta en Kroos Master primero');
+  const pedido = await emitirDirecto({ usuarioId: invitado.id, eventoId: id, items, canal: 'invitacion', vendidoPor: yo.id, metodoPago: 'gratis', titular: invitado.nombre });
+  await notificar(invitado.id, {
+    titulo: 'Tienes una invitación 🎁',
+    cuerpo: `Te han invitado a ${evento.titulo}.${nota ? ` «${nota}»` : ''} Ya la tienes en Mis entradas.`,
+    tipo: 'pedido',
+    datos: { pedidoId: pedido.id },
+  });
+  await auditar(yo.id, 'evento.invitacion', 'evento', id, { usuario_id: invitado.id, pedido_id: pedido.id });
+  res.status(201).json({ pedidoId: pedido.id });
+});
+
+organizadorRouter.get('/eventos/:id/invitaciones', async (req, res) => {
+  const { id } = params(req, idParam);
+  await miEvento(usuarioDe(req), id);
+  const [ev, pedidos] = await Promise.all([
+    db.from('eventos').select('cupo_invitaciones').eq('id', id).single(),
+    db
+      .from('pedidos')
+      .select('id, creado_en, estado, usuario:usuarios!pedidos_usuario_id_fkey(nombre, email), entradas(id, estado, es_acompanante)')
+      .eq('evento_id', id)
+      .eq('canal', 'invitacion')
+      .eq('estado', 'pagado')
+      .order('creado_en', { ascending: false }),
+  ]);
+  if (ev.error) throw ev.error;
+  if (pedidos.error) throw pedidos.error;
+  type P = { entradas: { estado: string; es_acompanante: boolean }[] };
+  const usadas = (pedidos.data as unknown as P[]).reduce(
+    (n, p) => n + p.entradas.filter((e) => !e.es_acompanante && (e.estado === 'valida' || e.estado === 'usada')).length,
+    0,
+  );
+  res.json({ cupo: ev.data.cupo_invitaciones, usadas, invitaciones: pedidos.data });
+});
+
+/** Venta en taquilla desde el móvil del organizador o su staff: efectivo, datáfono o Bizum. */
+organizadorRouter.post('/eventos/:id/taquilla', async (req, res) => {
+  const { id } = params(req, idParam);
+  const yo = usuarioDe(req);
+  editable(await miEvento(yo, id));
+  const d = body(
+    req,
+    z.object({
+      items: itemsEmision,
+      extras: z.array(z.object({ extraId: uuid, cantidad: z.number().int().min(1).max(20) })).max(10).default([]),
+      metodoPago: z.enum(['efectivo', 'tarjeta', 'bizum']),
+      titular: z.string().trim().max(80).optional(),
+      email: z.string().trim().toLowerCase().email('Email no válido').optional(),
+      validarYa: z.boolean().default(false),
+    }),
+  );
+  // Si da su email y tiene cuenta, las entradas van a su cuenta; si no, a la del vendedor.
+  const comprador = d.email ? ok(await db.from('usuarios').select('id, nombre').eq('email', d.email).maybeSingle()) : null;
+  const pedido = await emitirDirecto({
+    usuarioId: comprador?.id ?? yo.id,
+    eventoId: id,
+    items: d.items,
+    extras: d.extras,
+    canal: 'taquilla',
+    vendidoPor: yo.id,
+    metodoPago: d.metodoPago,
+    titular: d.titular || comprador?.nombre || 'Venta en taquilla',
+  });
+  if (d.validarYa) {
+    ok(await db.from('entradas').update({ estado: 'usada', usada_en: new Date().toISOString(), validada_por: yo.id }).eq('pedido_id', pedido.id).eq('estado', 'valida'));
+  }
+  const entradas = ok(await db.from('entradas').select('id, codigo, estado, tramo:tramos(nombre), asiento:asientos!entradas_asiento_id_fkey(fila, numero)').eq('pedido_id', pedido.id));
+  await auditar(yo.id, 'evento.taquilla', 'evento', id, { pedido_id: pedido.id, total: pedido.total_centimos, metodo: d.metodoPago });
+  res.status(201).json({ pedidoId: pedido.id, total_centimos: pedido.total_centimos, entradas, enCuentaDe: comprador ? 'comprador' : 'vendedor' });
+});
+
+// --- Exportar asistentes (CSV) ----------------------------------------
+
+/** Devuelve un enlace firmado (10 min) para descargar el CSV sin sesión. */
+organizadorRouter.post('/eventos/:id/exportar', async (req, res) => {
+  const { id } = params(req, idParam);
+  const yo = usuarioDe(req);
+  await miEvento(yo, id);
+  await auditar(yo.id, 'evento.exportar', 'evento', id);
+  res.json({ url: `${env.PUBLIC_API_URL ?? ''}/api/exportes/${id}.csv?t=${firmarEnlace(`csv:${id}`, 10)}` });
+});
+
+// --- Aplazar evento -----------------------------------------------------
+
+organizadorRouter.post('/eventos/:id/aplazar', async (req, res) => {
+  const { id } = params(req, idParam);
+  const yo = usuarioDe(req);
+  const evento = await miEvento(yo, id);
+  editable(evento);
+  const d = body(
+    req,
+    z
+      .object({
+        inicia_en: fechaFutura,
+        termina_en: z.coerce.date().nullable().optional(),
+        dias_reembolso: z.number().int().min(1).max(60).default(14),
+        motivo: z.string().trim().min(5, 'Explica el motivo a los asistentes').max(300),
+      })
+      .refine(fechasCoherentes, ERROR_FECHAS),
+  );
+  const actual = ok(await db.from('eventos').select('inicia_en, termina_en, puertas_abren_en, fecha_original').eq('id', id).single());
+  const desplazamiento = d.inicia_en.getTime() - new Date(actual.inicia_en).getTime();
+  const mover = (f: string | null) => (f ? new Date(new Date(f).getTime() + desplazamiento).toISOString() : null);
+  const hasta = new Date(Date.now() + d.dias_reembolso * 86_400_000).toISOString();
+  ok(
+    await db
+      .from('eventos')
+      .update({
+        inicia_en: d.inicia_en.toISOString(),
+        termina_en: d.termina_en !== undefined ? (d.termina_en?.toISOString() ?? null) : mover(actual.termina_en),
+        puertas_abren_en: mover(actual.puertas_abren_en),
+        fecha_original: actual.fecha_original ?? actual.inicia_en,
+        reembolso_aplazamiento_hasta: hasta,
+        actualizado_en: new Date().toISOString(),
+      })
+      .eq('id', id),
+  );
+  // Los recordatorios de la fecha antigua ya no valen.
+  await db.from('recordatorios_enviados').delete().eq('evento_id', id);
+
+  const titulares = ok(await db.from('pedidos').select('usuario_id').eq('evento_id', id).eq('estado', 'pagado'));
+  const fecha = d.inicia_en.toLocaleString('es-ES', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Europe/Madrid' });
+  await notificar(
+    (titulares ?? []).map((t) => t.usuario_id),
+    {
+      titulo: `${evento.titulo} se aplaza`,
+      cuerpo: `Nueva fecha: ${fecha}. Tus entradas siguen valiendo. Si no puedes ir, pide el reembolso desde tu pedido antes del ${new Date(hasta).toLocaleDateString('es-ES', { timeZone: 'Europe/Madrid' })}. Motivo: ${d.motivo}`,
+      tipo: 'evento',
+      datos: { eventoId: id },
+    },
+  );
+  await auditar(yo.id, 'evento.aplazar', 'evento', id, { de: actual.inicia_en, a: d.inicia_en.toISOString(), motivo: d.motivo });
+  res.json({ evento: await detalleEvento(id) });
 });

@@ -112,7 +112,7 @@ eventosRouter.get('/:id', optionalAuth, async (req, res) => {
   const [tramos, resenas, favorito, espera, recinto, gastos, reventas, fan, turno] = await Promise.all([
     db
       .from('tramos')
-      .select('id, nombre, descripcion, precio_centimos, cantidad_total, cantidad_vendida, cantidad_reservada, max_por_pedido, venta_inicia_en, venta_termina_en, orden, codigo_acceso, accesible, incluye_acompanante')
+      .select('id, nombre, descripcion, precio_centimos, cantidad_total, cantidad_vendida, cantidad_reservada, max_por_pedido, venta_inicia_en, venta_termina_en, orden, codigo_acceso, accesible, incluye_acompanante, numerado, fase_anterior_id')
       .eq('evento_id', id)
       .eq('activo', true)
       .order('orden')
@@ -128,6 +128,15 @@ eventosRouter.get('/:id', optionalAuth, async (req, res) => {
     yo ? db.from('registros_fan').select('estado').eq('evento_id', id).eq('usuario_id', yo.id).maybeSingle() : Promise.resolve({ data: null }),
     yo && evento.cola_activa ? estadoCola(id, yo.id) : Promise.resolve(null),
   ]);
+  const { data: extras } = await db
+    .from('extras')
+    .select('id, nombre, descripcion, tipo, precio_centimos, stock_total, stock_vendido, stock_reservado, max_por_pedido')
+    .eq('evento_id', id)
+    .eq('activo', true)
+    .order('precio_centimos');
+  // Fases: un tramo abre cuando se agota el anterior.
+  const porId = new Map((tramos.data ?? []).map((t) => [t.id, t]));
+  const libres = (t: { cantidad_total: number; cantidad_vendida: number; cantidad_reservada: number }) => t.cantidad_total - t.cantidad_vendida - t.cantidad_reservada;
   const reventaPorTramo = new Map<string, number>();
   for (const r of reventas.data ?? []) reventaPorTramo.set(r.tramo_id, (reventaPorTramo.get(r.tramo_id) ?? 0) + 1);
   // Los fans verificados seleccionados ven la preventa sin código.
@@ -162,14 +171,44 @@ eventosRouter.get('/:id', optionalAuth, async (req, res) => {
         max_por_pedido: t.max_por_pedido,
         disponibles: Math.max(t.cantidad_total - t.cantidad_vendida - t.cantidad_reservada, 0),
         venta_inicia_en: t.venta_inicia_en,
-        estado: estadoTramo(t),
+        estado: t.fase_anterior_id && porId.get(t.fase_anterior_id) && libres(porId.get(t.fase_anterior_id)!) > 0 ? ('proximamente' as const) : estadoTramo(t),
+        abre_al_agotar: t.fase_anterior_id && porId.get(t.fase_anterior_id) && libres(porId.get(t.fase_anterior_id)!) > 0 ? porId.get(t.fase_anterior_id)!.nombre : null,
+        numerado: t.numerado,
         preventa: Boolean(t.codigo_acceso),
         accesible: t.accesible,
         incluye_acompanante: t.incluye_acompanante,
         reventa_disponibles: reventaPorTramo.get(t.id) ?? 0,
       })),
+      extras: (extras ?? []).map(({ stock_total, stock_vendido, stock_reservado, ...x }) => ({
+        ...x,
+        disponibles: Math.max(stock_total - stock_vendido - stock_reservado, 0),
+      })),
     },
   });
+});
+
+const tramoParams = z.object({ id: z.string().uuid(), tramoId: z.string().uuid() });
+
+/** Plano de butacas de un tipo de entrada numerado (solo si está libre u ocupada). */
+eventosRouter.get('/:id/tramos/:tramoId/asientos', async (req, res) => {
+  const { id, tramoId } = params(req, tramoParams);
+  const evento = ok(await db.from('catalogo_eventos').select('id').eq('id', id).maybeSingle());
+  if (!evento) throw noEncontrado('Evento');
+  const asientos = ok(
+    await db.from('asientos').select('id, seccion, fila, orden_fila, numero, estado').eq('tramo_id', tramoId).eq('evento_id', id).order('orden_fila').order('numero'),
+  );
+  res.json({ asientos: (asientos ?? []).map((a) => ({ ...a, estado: a.estado === 'libre' ? 'libre' : 'ocupado' })) });
+});
+
+/** Mejor sitio disponible: butacas juntas, delante y centradas. */
+eventosRouter.get('/:id/tramos/:tramoId/mejores', async (req, res) => {
+  const { tramoId } = params(req, tramoParams);
+  const { n } = query(req, z.object({ n: z.coerce.number().int().min(1).max(20) }));
+  const { data: ids, error } = await db.rpc('mejores_asientos', { p_tramo_id: tramoId, p_n: n });
+  if (error) throw error;
+  if (!ids || !(ids as string[]).length) throw new AppError(409, 'SIN_STOCK', 'No quedan tantas butacas libres');
+  const asientos = ok(await db.from('asientos').select('id, seccion, fila, numero').in('id', ids as string[]).order('orden_fila').order('numero'));
+  res.json({ asientos });
 });
 
 /** Archivo .ics para añadir el evento al calendario. */

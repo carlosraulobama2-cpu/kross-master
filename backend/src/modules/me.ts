@@ -224,3 +224,9 @@ meRouter.get('/recomendaciones', async (req, res) => {
 
   res.json({ recomendaciones: puntuados.map((p) => ({ ...p.evento, motivo: p.motivo })) });
 });
+
+/** Mis consultas al soporte y sus respuestas. */
+meRouter.get('/consultas', async (req, res) => {
+  const yo = usuarioDe(req);
+  res.json({ consultas: ok(await db.from('consultas_soporte').select('id, asunto, mensaje, estado, respuesta, creado_en, respondida_en').eq('usuario_id', yo.id).order('creado_en', { ascending: false }).limit(50)) });
+});
