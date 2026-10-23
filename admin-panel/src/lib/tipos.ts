@@ -84,6 +84,7 @@ export interface Configuracion {
   gastos_gestion_porcentaje: number;
   gastos_gestion_fijo_centimos: number;
   comision_plataforma_porcentaje: number;
+  seguro_porcentaje: number;
   minutos_reserva: number;
   moneda: string;
   registro_abierto: boolean;

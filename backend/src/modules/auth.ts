@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
+import { env } from '../config/env';
 import { AppError } from '../lib/errors';
 import { authPublica, db } from '../lib/supabase';
 import { body } from '../middleware/validate';
@@ -8,7 +9,7 @@ import { body } from '../middleware/validate';
 export const authRouter = Router();
 
 // Frena fuerza bruta: 10 intentos cada 15 min por IP.
-authRouter.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: 'draft-8', legacyHeaders: false }));
+authRouter.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: 'draft-8', legacyHeaders: false, skip: () => env.NODE_ENV === 'test' }));
 
 const email = z.string().trim().toLowerCase().email('Email no válido');
 

@@ -6,6 +6,7 @@ import { idParam, paginacion, rango } from '../lib/schemas';
 import { db, ok } from '../lib/supabase';
 import { requireAuth, requireRol, usuarioDe } from '../middleware/auth';
 import { body, params, query } from '../middleware/validate';
+import { notificar } from '../services/notificaciones';
 import { cancelarEvento, reembolsarPedido } from '../services/pagos';
 
 export const adminRouter = Router();
@@ -167,6 +168,7 @@ const configSchema = z.object({
   gastos_gestion_porcentaje: z.number().min(0).max(30),
   gastos_gestion_fijo_centimos: z.number().int().min(0).max(1000),
   comision_plataforma_porcentaje: z.number().min(0).max(30),
+  seguro_porcentaje: z.number().min(0).max(30),
   minutos_reserva: z.number().int().min(3).max(60),
   registro_abierto: z.boolean(),
   mantenimiento: z.boolean(),
@@ -186,4 +188,45 @@ adminRouter.put('/configuracion', async (req, res) => {
   );
   await auditar(yo.id, 'admin.configuracion', 'configuracion', '1', cambios);
   res.json({ configuracion });
+});
+
+// --- Reclamaciones de la protección de reembolso --------------------
+
+adminRouter.get('/reclamaciones', async (req, res) => {
+  const f = query(req, paginacion.extend({ estado: z.enum(['pendiente', 'aprobada', 'rechazada']).optional() }));
+  let consulta = db
+    .from('reclamaciones_seguro')
+    .select(
+      'id, motivo, estado, respuesta, creado_en, resuelta_en, usuario:usuarios!reclamaciones_seguro_usuario_id_fkey(nombre, email), ' +
+        'pedido:pedidos(id, total_centimos, seguro_centimos, evento:eventos(titulo, inicia_en))',
+      { count: 'exact' },
+    )
+    .order('creado_en', { ascending: false });
+  if (f.estado) consulta = consulta.eq('estado', f.estado);
+  const [desde, hasta] = rango(f);
+  const { data, count, error } = await consulta.range(desde, hasta);
+  if (error) throw error;
+  res.json({ reclamaciones: data, total: count ?? 0 });
+});
+
+/** Aprobar reembolsa el pedido menos el coste de la protección. */
+adminRouter.post('/reclamaciones/:id', async (req, res) => {
+  const { id } = params(req, idParam);
+  const yo = usuarioDe(req);
+  const { decision, respuesta } = body(req, z.object({ decision: z.enum(['aprobada', 'rechazada']), respuesta: z.string().trim().min(3).max(500) }));
+  const r = ok(await db.from('reclamaciones_seguro').select('estado, pedido:pedidos(id, total_centimos, seguro_centimos, usuario_id)').eq('id', id).maybeSingle()) as unknown as {
+    estado: string;
+    pedido: { id: string; total_centimos: number; seguro_centimos: number; usuario_id: string };
+  } | null;
+  if (!r) throw noEncontrado('Reclamación');
+  if (r.estado !== 'pendiente') throw new AppError(409, 'YA_RESUELTA', 'Esta reclamación ya se ha resuelto');
+
+  if (decision === 'aprobada') {
+    await reembolsarPedido(r.pedido.id, yo.id, 'Protección de reembolso aprobada.', r.pedido.total_centimos - r.pedido.seguro_centimos);
+  } else {
+    await notificar(r.pedido.usuario_id, { titulo: 'Reclamación revisada', cuerpo: `No hemos podido aprobar tu reclamación: ${respuesta}`, tipo: 'pedido' });
+  }
+  ok(await db.from('reclamaciones_seguro').update({ estado: decision, respuesta, resuelta_en: new Date().toISOString(), resuelta_por: yo.id }).eq('id', id));
+  await auditar(yo.id, `admin.reclamacion_${decision}`, 'pedido', r.pedido.id, { respuesta });
+  res.status(204).end();
 });

@@ -8,7 +8,7 @@ publicoRouter.get('/config', async (_req, res) => {
   const cfg = ok(
     await db
       .from('configuracion')
-      .select('gastos_gestion_porcentaje, gastos_gestion_fijo_centimos, minutos_reserva, moneda, registro_abierto, mantenimiento, mensaje_mantenimiento, email_soporte')
+      .select('gastos_gestion_porcentaje, gastos_gestion_fijo_centimos, seguro_porcentaje, minutos_reserva, moneda, registro_abierto, mantenimiento, mensaje_mantenimiento, email_soporte')
       .eq('id', 1)
       .single(),
   );

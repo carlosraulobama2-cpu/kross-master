@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Chip, Fila, Icono, Pulsable, T } from '../../components/base';
@@ -8,6 +8,42 @@ import { useEventos, type FiltrosEventos } from '../../lib/consultas';
 import { plural } from '../../lib/formato';
 import type { PropsPestana } from '../../navigation/tipos';
 import { CATEGORIAS, color, espacio, radio, tipo } from '../../theme';
+
+type Cuando = 'cualquiera' | 'hoy' | 'manana' | 'finde' | 'semana' | 'mes';
+const CUANDO: { id: Cuando; nombre: string }[] = [
+  { id: 'cualquiera', nombre: 'Cualquier fecha' },
+  { id: 'hoy', nombre: 'Hoy' },
+  { id: 'manana', nombre: 'Mañana' },
+  { id: 'finde', nombre: 'Este finde' },
+  { id: 'semana', nombre: '7 días' },
+  { id: 'mes', nombre: 'Este mes' },
+];
+
+/** Rango de fechas (desde/hasta) para cada atajo. */
+export function rangoCuando(c: Cuando, ahora = new Date()): { desde?: string; hasta?: string } {
+  const inicioDia = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const finDia = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59);
+  const mas = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+  switch (c) {
+    case 'hoy':
+      return { hasta: finDia(ahora).toISOString() };
+    case 'manana':
+      return { desde: inicioDia(mas(ahora, 1)).toISOString(), hasta: finDia(mas(ahora, 1)).toISOString() };
+    case 'finde': {
+      // Del viernes a las 15:00 al domingo; si ya es finde, desde ahora.
+      const dia = ahora.getDay();
+      const hastaDomingo = (7 - dia) % 7;
+      const viernes = new Date(mas(ahora, dia === 0 ? -2 : 5 - dia).setHours(15));
+      return { desde: (viernes > ahora ? viernes : ahora).toISOString(), hasta: finDia(mas(ahora, hastaDomingo)).toISOString() };
+    }
+    case 'semana':
+      return { hasta: finDia(mas(ahora, 7)).toISOString() };
+    case 'mes':
+      return { hasta: finDia(new Date(ahora.getFullYear(), ahora.getMonth() + 1, 0)).toISOString() };
+    default:
+      return {};
+  }
+}
 
 const ORDENES: { id: NonNullable<FiltrosEventos['orden']>; nombre: string }[] = [
   { id: 'fecha', nombre: 'Más próximos' },
@@ -21,6 +57,8 @@ export function BuscarScreen({ navigation, route }: PropsPestana<'Buscar'>) {
   const [q, setQ] = useState('');
   const [categoria, setCategoria] = useState<string | undefined>(route.params?.categoria);
   const [orden, setOrden] = useState<FiltrosEventos['orden']>('fecha');
+  const [cuando, setCuando] = useState<Cuando>('cualquiera');
+  const [accesible, setAccesible] = useState(false);
   const entrada = useRef<TextInput>(null);
 
   useEffect(() => {
@@ -33,7 +71,8 @@ export function BuscarScreen({ navigation, route }: PropsPestana<'Buscar'>) {
     return () => clearTimeout(t);
   }, [texto]);
 
-  const consulta = useEventos({ q: q || undefined, categoria, orden });
+  const fechas = useMemo(() => rangoCuando(cuando), [cuando]);
+  const consulta = useEventos({ q: q || undefined, categoria, orden, ...fechas, accesible });
   const eventos = consulta.data?.pages.flatMap((p) => p.eventos) ?? [];
   const total = consulta.data?.pages[0]?.total ?? 0;
 
@@ -68,6 +107,13 @@ export function BuscarScreen({ navigation, route }: PropsPestana<'Buscar'>) {
         {CATEGORIAS.map((c) => (
           <Chip key={c.id} texto={c.nombre} icono={c.icono} activo={categoria === c.id} onPress={() => setCategoria(categoria === c.id ? undefined : c.id)} />
         ))}
+      </ScrollView>
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[s.carril, { paddingTop: 0 }]} style={{ flexGrow: 0 }}>
+        {CUANDO.map((c) => (
+          <Chip key={c.id} texto={c.nombre} icono={c.id === 'cualquiera' ? 'calendar-outline' : undefined} activo={cuando === c.id} onPress={() => setCuando(c.id)} />
+        ))}
+        <Chip texto="Accesible" icono="accessibility-outline" activo={accesible} onPress={() => setAccesible((v) => !v)} />
       </ScrollView>
 
       <Fila style={s.barraOrden}>
@@ -111,7 +157,7 @@ export function BuscarScreen({ navigation, route }: PropsPestana<'Buscar'>) {
             <Vacio
               icono="search-outline"
               titulo="Sin resultados"
-              texto={q ? `No encontramos nada para «${q}». Prueba con otra palabra o quita filtros.` : 'No hay eventos en esta categoría ahora mismo.'}
+              texto={q ? `No encontramos nada para «${q}». Prueba con otra palabra o quita filtros.` : 'No hay eventos con estos filtros. Prueba con otras fechas o categorías.'}
             />
           }
         />

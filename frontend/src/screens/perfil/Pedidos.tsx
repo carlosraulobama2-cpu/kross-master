@@ -4,9 +4,14 @@ import { ErrorEstado, Esqueleto, Vacio } from '../../components/estados';
 import { ImagenEvento } from '../../components/evento';
 import { Cabecera, Pantalla } from '../../components/pantalla';
 import { urlAbsoluta } from '../../lib/calendario';
-import { usePedido, usePedidos } from '../../lib/consultas';
+import { invalidarYo, usePedido, usePedidos } from '../../lib/consultas';
 import { fechaLarga, hora, plural, precioExacto } from '../../lib/formato';
-import type { EstadoPedido } from '../../lib/tipos';
+import type { EstadoPedido, Pedido } from '../../lib/tipos';
+import { useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useAviso } from '../../components/aviso';
+import { Campo } from '../../components/formulario';
+import { api, mensajeDe } from '../../lib/api';
 import type { PropsPantalla } from '../../navigation/tipos';
 import { color, espacio, radio } from '../../theme';
 import * as WebBrowser from 'expo-web-browser';
@@ -118,6 +123,12 @@ export function PedidoScreen({ navigation, route }: PropsPantalla<'Pedido'>) {
               <T c="texto2">Gastos de gestión</T>
               <T v="cuerpoFuerte">{precioExacto(p.gastos_centimos)}</T>
             </Fila>
+            {p.seguro_centimos > 0 && (
+              <Fila style={{ justifyContent: 'space-between' }}>
+                <T c="texto2">Protección de reembolso</T>
+                <T v="cuerpoFuerte">{precioExacto(p.seguro_centimos)}</T>
+              </Fila>
+            )}
             <Separador m={0} />
             <Fila style={{ justifyContent: 'space-between' }}>
               <T v="cabecera">Total</T>
@@ -129,9 +140,73 @@ export function PedidoScreen({ navigation, route }: PropsPantalla<'Pedido'>) {
               </T>
             )}
           </View>
+          {p.seguro_centimos > 0 && <Proteccion pedidoId={p.id} reclamacion={p.reclamacion} puede={p.estado === 'pagado' && new Date(p.evento.inicia_en).getTime() > Date.now()} />}
         </>
       )}
     </Pantalla>
+  );
+}
+
+/** Reclamar la protección de reembolso y ver cómo va. */
+function Proteccion({ pedidoId, reclamacion, puede }: { pedidoId: string; reclamacion: Pedido['reclamacion']; puede: boolean }) {
+  const qc = useQueryClient();
+  const avisar = useAviso();
+  const [abierto, setAbierto] = useState(false);
+  const [motivo, setMotivo] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  const ESTADO_R = { pendiente: ['En revisión', 'aviso'], aprobada: ['Aprobada · reembolso en camino', 'acento'], rechazada: ['Rechazada', 'peligro'] } as const;
+
+  async function enviar() {
+    setEnviando(true);
+    try {
+      await api(`/pedidos/${pedidoId}/reclamacion`, { method: 'POST', body: { motivo: motivo.trim() } });
+      avisar('Reclamación enviada. La revisaremos en 48 h', 'exito');
+      setAbierto(false);
+      await invalidarYo(qc);
+    } catch (e) {
+      avisar(mensajeDe(e), 'error');
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <View style={[s.fila, { flexDirection: 'column', alignItems: 'stretch', gap: espacio.m, marginTop: espacio.l }]}>
+      <Fila gap={espacio.m}>
+        <Icono n="umbrella" c={color.acento} />
+        <View style={{ flex: 1 }}>
+          <T v="cuerpoFuerte">Protección de reembolso</T>
+          <T v="nota" c="texto2">
+            Si no puedes ir por un motivo justificado, te devolvemos las entradas.
+          </T>
+        </View>
+      </Fila>
+      {reclamacion ? (
+        <View style={{ gap: 4 }}>
+          <Insignia texto={ESTADO_R[reclamacion.estado][0]} tono={ESTADO_R[reclamacion.estado][1]} />
+          {reclamacion.respuesta && (
+            <T v="nota" c="texto2">
+              {reclamacion.respuesta}
+            </T>
+          )}
+        </View>
+      ) : !puede ? (
+        <T v="nota" c="texto3">
+          Solo se puede reclamar antes de que empiece el evento.
+        </T>
+      ) : abierto ? (
+        <>
+          <Campo etiqueta="¿Qué ha pasado?" value={motivo} onChangeText={setMotivo} multiline placeholder="Cuéntanos el motivo. Podemos pedirte un justificante." />
+          <Boton onPress={() => void enviar()} cargando={enviando} deshabilitado={motivo.trim().length < 10}>
+            Enviar reclamación
+          </Boton>
+        </>
+      ) : (
+        <Boton v="secundario" icono="document-text-outline" onPress={() => setAbierto(true)}>
+          No puedo ir: reclamar
+        </Boton>
+      )}
+    </View>
   );
 }
 

@@ -9,7 +9,16 @@ import { useNotificaciones } from '../../lib/consultas';
 import { haceCuanto } from '../../lib/formato';
 import { color, espacio, radio } from '../../theme';
 
-const ICONOS: Record<string, NombreIcono> = { pedido: 'ticket', transferencia: 'gift', recordatorio: 'alarm', info: 'information-circle' };
+const ICONOS: Record<string, NombreIcono> = {
+  pedido: 'ticket',
+  transferencia: 'gift',
+  recordatorio: 'alarm',
+  info: 'information-circle',
+  reventa: 'swap-horizontal',
+  lista_espera: 'notifications',
+  novedad: 'sparkles',
+  fan: 'trophy',
+};
 
 export function NotificacionesScreen() {
   const qc = useQueryClient();

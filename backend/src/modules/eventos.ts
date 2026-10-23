@@ -16,7 +16,11 @@ const listadoSchema = paginacion.extend({
   desde: z.coerce.date().optional(),
   hasta: z.coerce.date().optional(),
   destacados: z.enum(['true', 'false']).optional(),
-  orden: z.enum(['fecha', 'precio', 'recientes']).default('fecha'),
+  orden: z.enum(['fecha', 'precio', 'recientes', 'distancia']).default('fecha'),
+  lat: z.coerce.number().min(-90).max(90).optional(),
+  lng: z.coerce.number().min(-180).max(180).optional(),
+  km: z.coerce.number().min(1).max(500).default(50),
+  accesible: z.enum(['true', 'false']).optional(),
 });
 
 /** Quita los caracteres con significado en los filtros de PostgREST. */
@@ -48,9 +52,30 @@ eventosRouter.get('/', async (req, res) => {
   else if (f.orden === 'recientes') consulta = consulta.order('creado_en', { ascending: false });
   else consulta = consulta.order('destacado', { ascending: false }).order('inicia_en', { ascending: true });
 
+  if (f.accesible === 'true') consulta = consulta.eq('tiene_accesibles', true);
+
+  // Cerca de mí: solo eventos dentro del radio, ordenados por distancia.
+  let distancias: Map<string, number> | null = null;
+  if (f.lat !== undefined && f.lng !== undefined) {
+    const { data: cerca, error: e } = await db.rpc('eventos_cerca', { p_lat: f.lat, p_lng: f.lng, p_km: f.km });
+    if (e) throw e;
+    distancias = new Map((cerca as { id: string; distancia_km: number }[]).map((c) => [c.id, c.distancia_km]));
+    consulta = consulta.in('id', [...distancias.keys(), '00000000-0000-0000-0000-000000000000']);
+  }
+
+  if (distancias && f.orden === 'distancia') {
+    // La distancia no es una columna: se ordena en memoria (el radio ya acota el resultado).
+    const { data, error } = await consulta;
+    if (error) throw error;
+    const todos = (data ?? []).map((e) => ({ ...e, distancia_km: distancias!.get(e.id) ?? null })).sort((a, b) => (a.distancia_km ?? 0) - (b.distancia_km ?? 0));
+    res.json({ eventos: todos.slice(desde, hasta + 1), total: todos.length, pagina: f.pagina, porPagina: f.porPagina });
+    return;
+  }
+
   const { data, error, count } = await consulta.range(desde, hasta);
   if (error) throw error;
-  res.json({ eventos: data, total: count ?? 0, pagina: f.pagina, porPagina: f.porPagina });
+  const eventos = distancias ? (data ?? []).map((e) => ({ ...e, distancia_km: distancias!.get(e.id) ?? null })) : data;
+  res.json({ eventos, total: count ?? 0, pagina: f.pagina, porPagina: f.porPagina });
 });
 
 eventosRouter.get('/ciudades', async (_req, res) => {
@@ -84,10 +109,10 @@ eventosRouter.get('/:id', optionalAuth, async (req, res) => {
   if (!evento) throw noEncontrado('Evento');
 
   const yo = req.usuario;
-  const [tramos, resenas, favorito, espera, recinto, gastos] = await Promise.all([
+  const [tramos, resenas, favorito, espera, recinto, gastos, reventas, fan, turno] = await Promise.all([
     db
       .from('tramos')
-      .select('id, nombre, descripcion, precio_centimos, cantidad_total, cantidad_vendida, cantidad_reservada, max_por_pedido, venta_inicia_en, venta_termina_en, orden, codigo_acceso')
+      .select('id, nombre, descripcion, precio_centimos, cantidad_total, cantidad_vendida, cantidad_reservada, max_por_pedido, venta_inicia_en, venta_termina_en, orden, codigo_acceso, accesible, incluye_acompanante')
       .eq('evento_id', id)
       .eq('activo', true)
       .order('orden')
@@ -99,10 +124,17 @@ eventosRouter.get('/:id', optionalAuth, async (req, res) => {
       ? db.from('recintos').select('id, nombre, direccion, ciudad, imagen_url, como_llegar, parking, accesibilidad, objetos_prohibidos').eq('id', evento.recinto_id).maybeSingle()
       : Promise.resolve({ data: null }),
     calculadoraGastos(),
+    db.from('reventas').select('tramo_id').eq('evento_id', id).eq('estado', 'activa'),
+    yo ? db.from('registros_fan').select('estado').eq('evento_id', id).eq('usuario_id', yo.id).maybeSingle() : Promise.resolve({ data: null }),
+    yo && evento.cola_activa ? estadoCola(id, yo.id) : Promise.resolve(null),
   ]);
+  const reventaPorTramo = new Map<string, number>();
+  for (const r of reventas.data ?? []) reventaPorTramo.set(r.tramo_id, (reventaPorTramo.get(r.tramo_id) ?? 0) + 1);
+  // Los fans verificados seleccionados ven la preventa sin código.
+  const fanSeleccionado = fan.data?.estado === 'seleccionado';
 
   // Los tramos de preventa solo aparecen con su código.
-  const visibles = (tramos.data ?? []).filter((t) => !t.codigo_acceso || t.codigo_acceso === acceso);
+  const visibles = (tramos.data ?? []).filter((t) => !t.codigo_acceso || t.codigo_acceso === acceso || fanSeleccionado);
   if (acceso && !visibles.some((t) => t.codigo_acceso === acceso)) {
     throw new AppError(404, 'PREVENTA_CODIGO', 'Ese código de preventa no es válido para este evento');
   }
@@ -113,6 +145,8 @@ eventosRouter.get('/:id', optionalAuth, async (req, res) => {
       ...evento,
       favorito: Boolean(favorito.data),
       en_lista_espera: Boolean(espera.data && !espera.data.avisado_en),
+      registro_fan: fan.data?.estado ?? null,
+      cola: turno,
       recinto_info: recinto.data,
       valoracion: {
         media: puntuaciones.length ? puntuaciones.reduce((a, b) => a + b, 0) / puntuaciones.length : null,
@@ -130,6 +164,9 @@ eventosRouter.get('/:id', optionalAuth, async (req, res) => {
         venta_inicia_en: t.venta_inicia_en,
         estado: estadoTramo(t),
         preventa: Boolean(t.codigo_acceso),
+        accesible: t.accesible,
+        incluye_acompanante: t.incluye_acompanante,
+        reventa_disponibles: reventaPorTramo.get(t.id) ?? 0,
       })),
     },
   });
@@ -233,4 +270,48 @@ eventosRouter.put('/:id/resena', requireAuth, async (req, res) => {
       .single(),
   );
   res.json({ resena });
+});
+
+// --- Cola virtual ----------------------------------------------------
+
+export async function estadoCola(eventoId: string, usuarioId: string) {
+  const { data: t } = await db.from('cola_turnos').select('posicion, admitido_en, expira_en').eq('evento_id', eventoId).eq('usuario_id', usuarioId).maybeSingle();
+  if (!t) return { en_cola: false, admitido: false, por_delante: null, minutos_estimados: null, expira_en: null };
+  const admitido = Boolean(t.admitido_en && t.expira_en && new Date(t.expira_en).getTime() > Date.now());
+  if (t.admitido_en) return { en_cola: true, admitido, por_delante: 0, minutos_estimados: 0, expira_en: t.expira_en };
+  const [{ count }, { data: ev }] = await Promise.all([
+    db.from('cola_turnos').select('usuario_id', { count: 'exact', head: true }).eq('evento_id', eventoId).is('admitido_en', null).lt('posicion', t.posicion),
+    db.from('eventos').select('cola_ritmo').eq('id', eventoId).single(),
+  ]);
+  const delante = count ?? 0;
+  return { en_cola: true, admitido: false, por_delante: delante, minutos_estimados: Math.ceil((delante + 1) / (ev?.cola_ritmo ?? 50)), expira_en: null };
+}
+
+/** Entrar en la cola virtual (idempotente: conserva el puesto). */
+eventosRouter.post('/:id/cola', requireAuth, async (req, res) => {
+  const { id } = params(req, idParam);
+  const yo = usuarioDe(req);
+  const ev = ok(await db.from('catalogo_eventos').select('cola_activa').eq('id', id).maybeSingle());
+  if (!ev) throw noEncontrado('Evento');
+  if (!ev.cola_activa) throw new AppError(409, 'SIN_COLA', 'Este evento no tiene cola: puedes comprar directamente');
+  const { error } = await db.from('cola_turnos').insert({ evento_id: id, usuario_id: yo.id });
+  if (error && error.code !== '23505') throw error;
+  res.json({ cola: await estadoCola(id, yo.id) });
+});
+
+eventosRouter.get('/:id/cola', requireAuth, async (req, res) => {
+  const { id } = params(req, idParam);
+  res.json({ cola: await estadoCola(id, usuarioDe(req).id) });
+});
+
+// --- Fans verificados --------------------------------------------------
+
+eventosRouter.post('/:id/registro-fan', requireAuth, async (req, res) => {
+  const { id } = params(req, idParam);
+  const ev = ok(await db.from('catalogo_eventos').select('registro_fan_activo').eq('id', id).maybeSingle());
+  if (!ev) throw noEncontrado('Evento');
+  if (!ev.registro_fan_activo) throw new AppError(409, 'REGISTRO_CERRADO', 'El registro de fans de este evento está cerrado');
+  const { error } = await db.from('registros_fan').insert({ evento_id: id, usuario_id: usuarioDe(req).id });
+  if (error && error.code !== '23505') throw error;
+  res.status(201).json({ registro_fan: 'inscrito' });
 });

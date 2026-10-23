@@ -11,6 +11,7 @@ import type { Pestanas, Rutas } from './tipos';
 import { AccesoScreen } from '../screens/auth/Acceso';
 import { BuscarScreen } from '../screens/explorar/Buscar';
 import { ArtistaScreen } from '../screens/explorar/Artista';
+import { ColaScreen } from '../screens/explorar/Cola';
 import { EventoScreen } from '../screens/explorar/Evento';
 import { RecintoScreen } from '../screens/explorar/Recinto';
 import { ExplorarScreen } from '../screens/explorar/Explorar';
@@ -118,6 +119,7 @@ export function Navegacion() {
         <Stack.Screen name="Recinto" component={RecintoScreen} />
         <Stack.Screen name="Pedidos" component={PedidosScreen} />
         <Stack.Screen name="Pedido" component={PedidoScreen} />
+        <Stack.Screen name="Cola" component={ColaScreen} options={{ animation: 'fade' }} />
         <Stack.Screen name="Pago" component={PagoScreen} />
         <Stack.Screen name="Confirmacion" component={ConfirmacionScreen} options={{ gestureEnabled: false, animation: 'fade' }} />
         <Stack.Screen name="Entrada" component={EntradaScreen} />

@@ -12,7 +12,10 @@ export interface Pedido {
   evento_id: string;
   estado: 'pendiente' | 'pagado' | 'expirado' | 'cancelado' | 'reembolsado';
   subtotal_centimos: number;
+  descuento_centimos: number;
   gastos_centimos: number;
+  seguro_centimos: number;
+  es_reventa: boolean;
   total_centimos: number;
   moneda: string;
   stripe_payment_intent_id: string | null;
@@ -55,7 +58,8 @@ export async function confirmarPagoPedido(pedidoId: string, paymentIntentId: str
   }
 
   if ((emitidas as number) > 0) {
-    const pedido = ok(await db.from('pedidos').select('usuario_id, evento_id').eq('id', pedidoId).single());
+    const pedido = ok(await db.from('pedidos').select('usuario_id, evento_id, es_reventa').eq('id', pedidoId).single());
+    if (pedido.es_reventa) await pagarVendedores(pedidoId);
     await notificar(pedido.usuario_id, {
       titulo: '¡Entradas listas! 🎟️',
       cuerpo: `Ya tienes ${emitidas} entrada${emitidas === 1 ? '' : 's'} para ${await tituloEvento(pedido.evento_id)}.`,
@@ -66,7 +70,7 @@ export async function confirmarPagoPedido(pedidoId: string, paymentIntentId: str
 }
 
 /** Reembolsa un pedido pagado en Stripe y anula sus entradas. */
-export async function reembolsarPedido(pedidoId: string, actorId: string | null, motivo: string): Promise<void> {
+export async function reembolsarPedido(pedidoId: string, actorId: string | null, motivo: string, importeCentimos?: number): Promise<void> {
   const pedido = ok(await db.from('pedidos').select('*').eq('id', pedidoId).maybeSingle()) as Pedido | null;
   if (!pedido) throw new AppError(404, 'NO_ENCONTRADO', 'Pedido no encontrado');
   if (pedido.estado === 'reembolsado') return;
@@ -78,6 +82,7 @@ export async function reembolsarPedido(pedidoId: string, actorId: string | null,
     await stripe.refunds.create(
       {
         payment_intent: pedido.stripe_payment_intent_id,
+        ...(importeCentimos !== undefined ? { amount: importeCentimos } : {}),
         ...(conConnect ? { reverse_transfer: true, refund_application_fee: true } : {}),
       },
       { idempotencyKey: `reembolso-${pedido.id}` },
@@ -88,10 +93,11 @@ export async function reembolsarPedido(pedidoId: string, actorId: string | null,
   // Puede que el webhook charge.refunded se haya adelantado.
   if (error && !error.message.includes('PEDIDO_NO_REEMBOLSABLE')) throw errorDesdeSql(error);
 
-  await auditar(actorId, 'pedido.reembolsar', 'pedido', pedido.id, { motivo, total_centimos: pedido.total_centimos });
+  const devuelto = importeCentimos ?? pedido.total_centimos;
+  await auditar(actorId, 'pedido.reembolsar', 'pedido', pedido.id, { motivo, total_centimos: devuelto });
   await notificar(pedido.usuario_id, {
     titulo: 'Reembolso en camino',
-    cuerpo: `Te hemos devuelto ${(pedido.total_centimos / 100).toFixed(2)} € de ${await tituloEvento(pedido.evento_id)}. ${motivo}`,
+    cuerpo: `Te hemos devuelto ${(devuelto / 100).toFixed(2)} € de ${await tituloEvento(pedido.evento_id)}. ${motivo}`,
     tipo: 'pedido',
     datos: { pedidoId: pedido.id },
   });
@@ -175,4 +181,47 @@ export async function procesarEventoStripe(evento: Stripe.Event): Promise<void> 
   }
 
   await db.from('stripe_eventos').insert({ id: evento.id, tipo: evento.type });
+}
+
+/**
+ * Reventa vendida: devuelve al vendedor el precio original de su entrada
+ * (reembolso parcial de su pedido). Idempotente por reventa.
+ */
+export async function pagarVendedores(pedidoCompradorId: string): Promise<void> {
+  const reventas = ok(
+    await db
+      .from('reventas')
+      .select('id, vendedor_id, precio_centimos, entrada:entradas(pedido_id), evento:eventos(titulo)')
+      .eq('pedido_id', pedidoCompradorId)
+      .eq('estado', 'vendida')
+      .is('reembolso_vendedor_en', null),
+  ) as unknown as { id: string; vendedor_id: string; precio_centimos: number; entrada: { pedido_id: string }; evento: { titulo: string } }[];
+
+  for (const r of reventas) {
+    try {
+      const original = ok(await db.from('pedidos').select('*').eq('id', r.entrada.pedido_id).single()) as Pedido;
+      if (original.stripe_payment_intent_id && r.precio_centimos > 0) {
+        const conConnect = await tieneTransferencia(original);
+        await stripe.refunds.create(
+          {
+            payment_intent: original.stripe_payment_intent_id,
+            amount: r.precio_centimos,
+            metadata: { reventaId: r.id },
+            ...(conConnect ? { reverse_transfer: true } : {}),
+          },
+          { idempotencyKey: `reventa-${r.id}` },
+        );
+      }
+      ok(await db.from('reventas').update({ reembolso_vendedor_en: new Date().toISOString() }).eq('id', r.id));
+      await notificar(r.vendedor_id, {
+        titulo: '¡Tu entrada se ha vendido!',
+        cuerpo: `Alguien ha comprado tu entrada de ${r.evento.titulo}. Te devolvemos ${(r.precio_centimos / 100).toFixed(2)} € a tu tarjeta.`,
+        tipo: 'reventa',
+        datos: { reventaId: r.id },
+      });
+    } catch (err) {
+      // Se reintenta en el siguiente job: la reventa queda sin reembolso_vendedor_en.
+      logger.error({ err, reventaId: r.id }, 'No se pudo pagar al vendedor de la reventa');
+    }
+  }
 }

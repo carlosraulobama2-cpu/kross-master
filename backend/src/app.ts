@@ -17,6 +17,7 @@ import { pedidosRouter } from './modules/pedidos';
 import { publicoRouter } from './modules/publico';
 import { puertaRouter } from './modules/puerta';
 import { recibosRouter } from './modules/recibos';
+import { walletRouter } from './modules/wallet';
 import { webhooksRouter } from './modules/webhooks';
 import './types';
 
@@ -50,6 +51,7 @@ export function crearApp() {
   app.use('/api/artistas', artistasRouter);
   app.use('/api/recintos', recintosRouter);
   app.use('/api/recibos', recibosRouter);
+  app.use('/api/wallet', walletRouter);
   app.use('/api/pedidos', pedidosRouter);
   app.use('/api/entradas', entradasRouter);
   app.use('/api/transferencias', transferenciasRouter);

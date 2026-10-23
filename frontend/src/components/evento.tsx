@@ -44,6 +44,7 @@ function Fecha({ iso }: { iso: string }) {
 }
 
 function etiquetaDisponibilidad(e: EventoResumen) {
+  if (e.aforo > 0 && e.disponibles === 0 && e.reventa_disponibles > 0) return <Insignia texto="Reventa" tono="info" icono="swap-horizontal" />;
   if (e.aforo > 0 && e.disponibles === 0) return <Insignia texto="Agotado" tono="peligro" />;
   if (e.aforo > 0 && e.disponibles / e.aforo < 0.15) return <Insignia texto="Últimas entradas" tono="aviso" icono="flame" />;
   return null;
@@ -103,6 +104,7 @@ export function FilaEvento({ evento, onPress }: { evento: EventoResumen; onPress
         </T>
         <T v="nota" c="texto3" numberOfLines={1}>
           {evento.recinto} · {evento.ciudad}
+          {evento.distancia_km != null ? ` · a ${evento.distancia_km < 1 ? '<1' : Math.round(evento.distancia_km)} km` : ''}
         </T>
         <Fila style={{ marginTop: 4, justifyContent: 'space-between' }}>
           <T v="nota" style={{ fontWeight: '800' }}>
@@ -131,6 +133,14 @@ export function TarjetaEvento({ evento, onPress, ancho = 220 }: { evento: Evento
       <T v="nota" c="texto2" numberOfLines={1} style={{ marginTop: -6 }}>
         {evento.ciudad} · {evento.precio_desde_total_centimos ? `desde ${precio(evento.precio_desde_total_centimos)}` : 'gratis'}
       </T>
+      {evento.motivo && (
+        <Fila gap={4} style={{ marginTop: -4 }}>
+          <Icono n="sparkles" tam={12} c={color.acento} />
+          <T v="nota" c="acento" numberOfLines={1} style={{ flex: 1, fontWeight: '600' }}>
+            {evento.motivo}
+          </T>
+        </Fila>
+      )}
     </Pulsable>
   );
 }

@@ -1,10 +1,11 @@
 import Constants from 'expo-constants';
-import { Alert, FlatList, Linking, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { FlatList, Linking, ScrollView, StyleSheet, View } from 'react-native';
 import { useAviso } from '../../components/aviso';
 import { Boton, Fila, Icono, Insignia, Pulsable, T, type NombreIcono } from '../../components/base';
 import { TarjetaEvento } from '../../components/evento';
 import { Pantalla, TituloSeccion } from '../../components/pantalla';
 import { api, mensajeDe } from '../../lib/api';
+import { confirmar } from '../../lib/confirmar';
 import { useAuth } from '../../lib/auth';
 import { useConfig, useEventosPuerta, useFavoritos, useNotificaciones, useSiguiendo } from '../../lib/consultas';
 import type { PropsPestana } from '../../navigation/tipos';
@@ -39,17 +40,6 @@ function Opcion({ icono, texto, detalle, onPress, peligro, contador }: { icono: 
 }
 
 const Grupo = ({ children }: { children: React.ReactNode }) => <View style={s.grupo}>{children}</View>;
-
-/** Confirmación que funciona igual en móvil y en web. */
-function confirmar(titulo: string, mensaje: string, accion: string): Promise<boolean> {
-  if (Platform.OS === 'web') return Promise.resolve(window.confirm(`${titulo}\n\n${mensaje}`));
-  return new Promise((ok) =>
-    Alert.alert(titulo, mensaje, [
-      { text: 'Cancelar', style: 'cancel', onPress: () => ok(false) },
-      { text: accion, style: 'destructive', onPress: () => ok(true) },
-    ]),
-  );
-}
 
 export function PerfilScreen({ navigation }: PropsPestana<'Perfil'>) {
   const { usuario, salir } = useAuth();

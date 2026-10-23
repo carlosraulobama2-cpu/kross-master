@@ -21,6 +21,7 @@ interface TramoForm {
   cantidad: string;
   max: string;
   codigo: string;
+  accesible: boolean;
 }
 
 const DURACIONES = [1, 2, 3, 4, 6, 12, 24];
@@ -46,7 +47,7 @@ export function EventoFormScreen({ navigation, route }: PropsPantalla<'EventoFor
   const [ciudad, setCiudad] = useState('');
   const [inicia, setInicia] = useState<Date | null>(null);
   const [duracion, setDuracion] = useState(3);
-  const [tramos, setTramos] = useState<TramoForm[]>([{ nombre: 'General', precio: '', cantidad: '', max: '6', codigo: '' }]);
+  const [tramos, setTramos] = useState<TramoForm[]>([{ nombre: 'General', precio: '', cantidad: '', max: '6', codigo: '', accesible: false }]);
   const [artistas, setArtistas] = useState<string[]>([]);
   const [nuevoArtista, setNuevoArtista] = useState('');
   const [puertas, setPuertas] = useState<Date | null>(null);
@@ -162,6 +163,8 @@ export function EventoFormScreen({ navigation, route }: PropsPantalla<'EventoFor
             cantidad_total: entero(t.cantidad),
             max_por_pedido: Math.max(1, Math.min(50, entero(t.max) || 10)),
             codigo_acceso: t.codigo.trim() || null,
+            accesible: t.accesible,
+            incluye_acompanante: t.accesible,
             orden: i,
           })),
         },
@@ -373,6 +376,12 @@ export function EventoFormScreen({ navigation, route }: PropsPantalla<'EventoFor
                     icono="key-outline"
                     ayuda="Si lo rellenas, este tipo de entrada solo se ve y se compra con el código"
                   />
+                  <Chip
+                    texto="Plaza accesible + acompañante gratis"
+                    icono="accessibility-outline"
+                    activo={t.accesible}
+                    onPress={() => setTramos((ts) => ts.map((x, j) => (j === i ? { ...x, accesible: !x.accesible } : x)))}
+                  />
                 </View>
               );
             })}
@@ -385,7 +394,7 @@ export function EventoFormScreen({ navigation, route }: PropsPantalla<'EventoFor
               icono="person-outline"
               ayuda="Frena a la reventa: cuenta todas las compras de la misma cuenta"
             />
-            <Pulsable onPress={() => setTramos((ts) => [...ts, { nombre: '', precio: '', cantidad: '', max: '6', codigo: '' }])} style={s.anadir} escala={0.98}>
+            <Pulsable onPress={() => setTramos((ts) => [...ts, { nombre: '', precio: '', cantidad: '', max: '6', codigo: '', accesible: false }])} style={s.anadir} escala={0.98}>
               <Icono n="add-circle-outline" c={color.acento} />
               <T v="cuerpoFuerte" c="acento">
                 Añadir otro tipo de entrada

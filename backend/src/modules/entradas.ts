@@ -5,15 +5,17 @@ import { idParam } from '../lib/schemas';
 import { db, ok } from '../lib/supabase';
 import { requireAuth, usuarioDe } from '../middleware/auth';
 import { body, params } from '../middleware/validate';
+import { urlGoogleWallet, walletDisponible } from '../lib/wallet';
 import { notificar } from '../services/notificaciones';
+import { datosPase, urlPkpass } from './wallet';
 
 export const entradasRouter = Router();
 entradasRouter.use(requireAuth);
 
 const CAMPOS_ENTRADA =
-  'id, codigo, estado, usada_en, creado_en, qr_semilla, pedido_id, ' +
+  'id, codigo, estado, es_acompanante, usada_en, creado_en, qr_semilla, pedido_id, ' +
   'evento:eventos(id, titulo, categoria, inicia_en, termina_en, recinto, direccion, ciudad, imagen_url, estado), ' +
-  'tramo:tramos(id, nombre)';
+  'tramo:tramos(id, nombre, accesible), reventas(estado, precio_centimos)';
 
 interface FilaEntrada {
   id: string;
@@ -82,6 +84,33 @@ entradasRouter.post('/:id/transferir', async (req, res) => {
     datos: { transferenciaId: transferencia.id },
   });
   res.status(201).json({ transferencia });
+});
+
+/** Poner la entrada en la reventa oficial (a precio original). */
+entradasRouter.post('/:id/reventa', async (req, res) => {
+  const { id } = params(req, idParam);
+  const { data, error } = await db.rpc('publicar_reventa', { p_entrada_id: id, p_usuario_id: usuarioDe(req).id });
+  if (error) throw errorDesdeSql(error);
+  res.status(201).json({ reventa: data });
+});
+
+entradasRouter.delete('/:id/reventa', async (req, res) => {
+  const { id } = params(req, idParam);
+  const { error } = await db.rpc('cancelar_reventa', { p_entrada_id: id, p_usuario_id: usuarioDe(req).id });
+  if (error) throw errorDesdeSql(error);
+  res.status(204).end();
+});
+
+/** Enlaces para añadir la entrada a Apple Wallet o Google Wallet (si están configurados). */
+entradasRouter.get('/:id/wallet', async (req, res) => {
+  const { id } = params(req, idParam);
+  const disponible = walletDisponible();
+  if (!disponible.apple && !disponible.google) {
+    res.json({ apple_url: null, google_url: null });
+    return;
+  }
+  const datos = await datosPase(id, usuarioDe(req).id);
+  res.json({ apple_url: disponible.apple ? urlPkpass(id) : null, google_url: disponible.google ? urlGoogleWallet(datos) : null });
 });
 
 export const transferenciasRouter = Router();

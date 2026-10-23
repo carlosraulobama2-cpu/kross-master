@@ -10,6 +10,7 @@ import { Auditoria } from './pages/Auditoria';
 import { Eventos } from './pages/Eventos';
 import { Login } from './pages/Login';
 import { Pedidos } from './pages/Pedidos';
+import { Reclamaciones } from './pages/Reclamaciones';
 import { Resumen } from './pages/Resumen';
 import { Usuarios } from './pages/Usuarios';
 import './styles.css';
@@ -36,6 +37,7 @@ createRoot(document.getElementById('root')!).render(
                 <Route index element={<Resumen />} />
                 <Route path="eventos" element={<Eventos />} />
                 <Route path="pedidos" element={<Pedidos />} />
+                <Route path="reclamaciones" element={<Reclamaciones />} />
                 <Route path="usuarios" element={<Usuarios />} />
                 <Route path="auditoria" element={<Auditoria />} />
                 <Route path="ajustes" element={<Ajustes />} />

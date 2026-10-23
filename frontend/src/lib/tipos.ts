@@ -46,7 +46,23 @@ export interface EventoResumen {
   puertas_abren_en: string | null;
   max_por_usuario: number | null;
   tiene_preventa: boolean | null;
+  tiene_accesibles: boolean | null;
+  reventa_disponibles: number;
+  cola_activa: boolean;
+  registro_fan_activo: boolean;
   artistas: ArtistaMini[];
+  /** Solo en búsquedas «cerca de mí». */
+  distancia_km?: number | null;
+  /** Solo en recomendaciones. */
+  motivo?: string | null;
+}
+
+export interface EstadoCola {
+  en_cola: boolean;
+  admitido: boolean;
+  por_delante: number | null;
+  minutos_estimados: number | null;
+  expira_en: string | null;
 }
 
 export interface ArtistaMini {
@@ -96,11 +112,16 @@ export interface Tramo {
   venta_inicia_en: string | null;
   estado: EstadoTramo;
   preventa: boolean;
+  accesible: boolean;
+  incluye_acompanante: boolean;
+  reventa_disponibles: number;
 }
 
 export interface EventoDetalle extends EventoResumen {
   favorito: boolean;
   en_lista_espera: boolean;
+  registro_fan: 'inscrito' | 'seleccionado' | 'no_seleccionado' | null;
+  cola: EstadoCola | null;
   recinto_info: InfoRecinto | null;
   valoracion: { media: number | null; total: number };
   tramos: Tramo[];
@@ -114,9 +135,12 @@ export interface Pedido {
   subtotal_centimos: number;
   descuento_centimos: number;
   gastos_centimos: number;
+  seguro_centimos: number;
   total_centimos: number;
   moneda: string;
+  es_reventa: boolean;
   recibo_url: string | null;
+  reclamacion: { estado: 'pendiente' | 'aprobada' | 'rechazada'; respuesta: string | null; creado_en: string } | null;
   expira_en: string;
   pagado_en: string | null;
   creado_en: string;
@@ -124,7 +148,7 @@ export interface Pedido {
   items: { cantidad: number; precio_unitario_centimos: number; tramo: { id: string; nombre: string } }[];
 }
 
-export type EstadoEntrada = 'valida' | 'usada' | 'anulada' | 'reembolsada';
+export type EstadoEntrada = 'valida' | 'usada' | 'anulada' | 'reembolsada' | 'en_venta' | 'revendida';
 
 export interface Entrada {
   id: string;
@@ -134,6 +158,8 @@ export interface Entrada {
   creado_en: string;
   qr_semilla: string | null;
   pedido_id: string;
+  es_acompanante: boolean;
+  reventas: { estado: string; precio_centimos: number }[];
   transferenciaPendiente?: boolean;
   evento: {
     id: string;
@@ -147,7 +173,7 @@ export interface Entrada {
     imagen_url: string | null;
     estado: string;
   };
-  tramo: { id: string; nombre: string };
+  tramo: { id: string; nombre: string; accesible: boolean };
 }
 
 export interface PedidoResumen {
@@ -198,6 +224,7 @@ export interface Notificacion {
 export interface ConfigPublica {
   gastos_gestion_porcentaje: number;
   gastos_gestion_fijo_centimos: number;
+  seguro_porcentaje: number;
   minutos_reserva: number;
   moneda: string;
   registro_abierto: boolean;
@@ -237,6 +264,8 @@ export interface TramoOrganizador {
   activo: boolean;
   orden: number;
   codigo_acceso: string | null;
+  accesible: boolean;
+  incluye_acompanante: boolean;
 }
 
 export interface EstadisticasEvento {
@@ -254,6 +283,9 @@ export interface EventoGestion extends Omit<EventoOrganizador, 'aforo' | 'vendid
   termina_en: string | null;
   puertas_abren_en: string | null;
   max_por_usuario: number | null;
+  cola_activa: boolean;
+  cola_ritmo: number;
+  registro_fan_activo: boolean;
   artistas: { id: string; nombre: string }[];
   recinto_info: Omit<InfoRecinto, 'direccion' | 'ciudad' | 'imagen_url'> | null;
   tramos: TramoOrganizador[];

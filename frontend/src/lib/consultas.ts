@@ -6,6 +6,7 @@ import type {
   Artista,
   CodigoPromocional,
   ConfigPublica,
+  EstadoCola,
   PedidoResumen,
   Recinto,
   Entrada,
@@ -23,8 +24,13 @@ export interface FiltrosEventos {
   categoria?: string;
   ciudad?: string;
   destacados?: boolean;
-  orden?: 'fecha' | 'precio' | 'recientes';
+  orden?: 'fecha' | 'precio' | 'recientes' | 'distancia';
+  desde?: string;
   hasta?: string;
+  lat?: number;
+  lng?: number;
+  km?: number;
+  accesible?: boolean;
 }
 
 const POR_PAGINA = 12;
@@ -35,7 +41,13 @@ export function useEventos(filtros: FiltrosEventos) {
     initialPageParam: 1,
     queryFn: ({ pageParam }) =>
       api<{ eventos: EventoResumen[]; total: number; pagina: number }>('/eventos', {
-        query: { ...filtros, destacados: filtros.destacados ? 'true' : undefined, pagina: pageParam, porPagina: POR_PAGINA },
+        query: {
+          ...filtros,
+          destacados: filtros.destacados ? 'true' : undefined,
+          accesible: filtros.accesible ? 'true' : undefined,
+          pagina: pageParam,
+          porPagina: POR_PAGINA,
+        },
       }),
     getNextPageParam: (ultima) => (ultima.pagina * POR_PAGINA < ultima.total ? ultima.pagina + 1 : undefined),
   });
@@ -88,6 +100,15 @@ export const useSiguiendo = () =>
   );
 export const useCodigosEvento = (id: string) =>
   usePrivada(['organizador', 'codigos', id], () => api<{ codigos: CodigoPromocional[] }>(`/organizador/eventos/${id}/codigos`).then((r) => r.codigos));
+
+export const useRecomendaciones = () =>
+  usePrivada(['recomendaciones'], () => api<{ recomendaciones: EventoResumen[] }>('/me/recomendaciones').then((r) => r.recomendaciones));
+export const useWallet = (entradaId: string) =>
+  usePrivada(['wallet', entradaId], () => api<{ apple_url: string | null; google_url: string | null }>(`/entradas/${entradaId}/wallet`));
+export const useCola = (eventoId: string, sondear: boolean) =>
+  usePrivada(['cola', eventoId], () => api<{ cola: EstadoCola }>(`/eventos/${eventoId}/cola`).then((r) => r.cola), { refetchInterval: sondear ? 5000 : undefined });
+export const useFansEvento = (id: string) =>
+  usePrivada(['organizador', 'fans', id], () => api<{ fans: Record<'inscrito' | 'seleccionado' | 'no_seleccionado', number> }>(`/organizador/eventos/${id}/fans`).then((r) => r.fans));
 
 export const useMisEventos = () =>
   usePrivada(['organizador', 'eventos'], () => api<{ eventos: EventoOrganizador[] }>('/organizador/eventos', { query: { porPagina: 100 } }).then((r) => r.eventos));

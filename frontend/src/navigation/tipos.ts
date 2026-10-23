@@ -16,6 +16,7 @@ export type Rutas = {
   Recinto: { id: string };
   Pedidos: undefined;
   Pedido: { id: string };
+  Cola: { eventoId: string; titulo: string };
   Pago: { pedidoId: string; clientSecret: string | null };
   Confirmacion: { pedidoId: string };
   Entrada: { id: string };

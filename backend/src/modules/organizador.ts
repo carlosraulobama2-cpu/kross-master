@@ -54,6 +54,8 @@ const tramoSchema = z.object({
     .regex(/^[A-Z0-9_-]{3,30}$/, 'El código de preventa solo admite letras, números, - y _ (3 a 30)')
     .nullable()
     .optional(),
+  accesible: z.boolean().optional(),
+  incluye_acompanante: z.boolean().optional(),
 });
 
 const textoInfo = z.string().trim().max(1000).nullable().optional();
@@ -72,6 +74,9 @@ const eventoBase = z.object({
   politica_devolucion: z.string().trim().max(1000).optional(),
   puertas_abren_en: z.coerce.date().nullable().optional(),
   max_por_usuario: z.number().int().min(1).max(100).nullable().optional(),
+  cola_activa: z.boolean().optional(),
+  cola_ritmo: z.number().int().min(1).max(10000).optional(),
+  registro_fan_activo: z.boolean().optional(),
   artistas: z.array(z.string().trim().min(2).max(80)).max(20).optional(),
   // Información práctica del recinto (se guarda en el recinto, no en el evento).
   como_llegar: textoInfo,
@@ -113,8 +118,13 @@ const fechasCoherentes = (d: { inicia_en?: Date; termina_en?: Date | null }) =>
   !d.termina_en || !d.inicia_en || d.termina_en > d.inicia_en;
 const ERROR_FECHAS = { message: 'La hora de fin debe ser posterior al inicio', path: ['termina_en'] };
 
+// En inserciones múltiples PostgREST pone null en las claves que faltan: se dan todos los valores.
 const fechasTramo = (t: z.infer<typeof tramoSchema>) => ({
   ...t,
+  accesible: t.accesible ?? false,
+  incluye_acompanante: t.incluye_acompanante ?? false,
+  codigo_acceso: t.codigo_acceso ?? null,
+  descripcion: t.descripcion ?? null,
   venta_inicia_en: t.venta_inicia_en?.toISOString() ?? null,
   venta_termina_en: t.venta_termina_en?.toISOString() ?? null,
 });
@@ -395,4 +405,45 @@ organizadorRouter.delete('/eventos/:id/codigos/:codigoId', async (req, res) => {
   if (usado) ok(await db.from('codigos_promocionales').update({ activo: false }).eq('id', codigoId));
   else ok(await db.from('codigos_promocionales').delete().eq('id', codigoId).eq('evento_id', id));
   res.status(204).end();
+});
+
+// --- Fans verificados: inscritos y sorteo ---------------------------
+
+organizadorRouter.get('/eventos/:id/fans', async (req, res) => {
+  const { id } = params(req, idParam);
+  await miEvento(usuarioDe(req), id);
+  const filas = ok(await db.from('registros_fan').select('estado').eq('evento_id', id));
+  const conteo = { inscrito: 0, seleccionado: 0, no_seleccionado: 0 } as Record<string, number>;
+  for (const f of filas ?? []) conteo[f.estado] = (conteo[f.estado] ?? 0) + 1;
+  res.json({ fans: conteo });
+});
+
+/** Sortea las plazas de preventa entre los inscritos y avisa a todos. */
+organizadorRouter.post('/eventos/:id/sorteo', async (req, res) => {
+  const { id } = params(req, idParam);
+  const yo = usuarioDe(req);
+  const evento = await miEvento(yo, id);
+  editable(evento);
+  const { plazas } = body(req, z.object({ plazas: z.number().int().min(1).max(100_000) }));
+  const { count } = await db.from('registros_fan').select('usuario_id', { count: 'exact', head: true }).eq('evento_id', id).eq('estado', 'inscrito');
+  if (!count) throw new AppError(409, 'SIN_INSCRITOS', 'No hay fans inscritos pendientes de sorteo');
+
+  const { data: elegidos, error } = await db.rpc('sortear_fans', { p_evento_id: id, p_plazas: plazas });
+  if (error) throw error;
+  const ids = (elegidos as string[]) ?? [];
+  const { data: resto } = await db.from('registros_fan').select('usuario_id').eq('evento_id', id).eq('estado', 'no_seleccionado');
+  ok(await db.from('eventos').update({ registro_fan_activo: false }).eq('id', id));
+
+  await notificar(ids, {
+    titulo: '¡Has sido seleccionado! 🎉',
+    cuerpo: `Ya puedes comprar en la preventa de ${evento.titulo}. Abre el evento: verás las entradas reservadas para fans.`,
+    tipo: 'fan',
+    datos: { eventoId: id },
+  });
+  await notificar(
+    (resto ?? []).map((r) => r.usuario_id).filter((u) => !ids.includes(u)),
+    { titulo: 'Sorteo de preventa', cuerpo: `Esta vez no ha habido suerte en la preventa de ${evento.titulo}. Te avisaremos de la venta general.`, tipo: 'fan', datos: { eventoId: id } },
+  );
+  await auditar(yo.id, 'evento.sorteo_fans', 'evento', id, { plazas, seleccionados: ids.length });
+  res.json({ seleccionados: ids.length, no_seleccionados: (resto ?? []).length });
 });

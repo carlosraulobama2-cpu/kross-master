@@ -11,6 +11,8 @@ const ESTADO: Record<Entrada['estado'], { texto: string; tono: 'acento' | 'neutr
   usada: { texto: 'Usada', tono: 'neutro' },
   anulada: { texto: 'Anulada', tono: 'peligro' },
   reembolsada: { texto: 'Reembolsada', tono: 'info' },
+  en_venta: { texto: 'En reventa', tono: 'info' },
+  revendida: { texto: 'Vendida', tono: 'neutro' },
 };
 
 /** Entradas de un mismo evento agrupadas como un billete físico. */
@@ -18,6 +20,7 @@ export function BilleteEvento({ entradas, onPress }: { entradas: Entrada[]; onPr
   const e = entradas[0]!;
   const validas = entradas.filter((x) => x.estado === 'valida').length;
   const tramos = [...new Set(entradas.map((x) => x.tramo.nombre))].join(' · ');
+  const enVenta = entradas.filter((x) => x.estado === 'en_venta').length;
   const estado = validas === 0 ? ESTADO[entradas[0]!.estado] : null;
   return (
     <Pulsable onPress={onPress} style={s.billete} escala={0.98} accessibilityLabel={`${e.evento.titulo}, ${plural(entradas.length, 'entrada', 'entradas')}`}>
@@ -54,6 +57,11 @@ export function BilleteEvento({ entradas, onPress }: { entradas: Entrada[]; onPr
           <T v="nota" c="texto3" numberOfLines={1}>
             {tramos}
           </T>
+          {enVenta > 0 && validas > 0 && (
+            <T v="nota" c="info" numberOfLines={1}>
+              {enVenta} en reventa
+            </T>
+          )}
         </View>
         {estado ? (
           <Insignia texto={estado.texto} tono={estado.tono} />

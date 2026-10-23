@@ -80,7 +80,7 @@ insert into demo_eventos values
  '[{"nombre":"Platea","precio":2800,"total":180},{"nombre":"Anfiteatro","precio":1800,"total":120}]'),
 ('promotora', 'CD Olivares vs Atlético Sierra', 'Derbi provincial en la jornada 12. Puertas a las 17:00.', 'deportes', 'Estadio La Victoria', 'Av. de Madrid s/n', 'Jaén', 6, '18:30', '2 hours',
  'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=1200&q=80&auto=format&fit=crop', false,
- '[{"nombre":"Fondo","precio":1500,"total":800},{"nombre":"Tribuna","precio":2500,"total":400}]'),
+ '[{"nombre":"Fondo","precio":1500,"total":800},{"nombre":"Tribuna","precio":2500,"total":400},{"nombre":"Movilidad reducida","precio":1500,"total":20,"accesible":true,"descripcion":"Plataforma reservada junto a la tribuna principal"}]'),
 ('sala', 'Monólogos en el Mercado', 'Cuatro cómicos, una barra y mucho humor del sur. Consumición incluida.', 'otros', 'Mercado Lonja del Barranco', 'C. Arjona s/n', 'Sevilla', 3, '22:00', '90 minutes',
  'https://images.unsplash.com/photo-1429962714451-bb934ecdc4ec?w=1200&q=80&auto=format&fit=crop', false,
  '[{"nombre":"Entrada + consumición","precio":1400,"total":150}]'),
@@ -89,7 +89,7 @@ insert into demo_eventos values
  '[{"nombre":"Zona A","precio":4500,"total":200},{"nombre":"Zona B","precio":3200,"total":300}]'),
 ('sala', 'Flamenco de Raíz: Noche de Cante', 'Cante jondo y guitarra en el patio de un corral de vecinos del siglo XVII.', 'conciertos', 'Corral del Conde', 'C. Santiago 27', 'Sevilla', 34, '21:00', '2 hours',
  'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=1200&q=80&auto=format&fit=crop', false,
- '[{"nombre":"General","precio":2500,"total":90}]'),
+ '[{"nombre":"General","precio":2500,"total":90,"vendidas":90}]'),
 ('promotora', 'Costa Neón Festival', 'Electrónica y pop frente al mar. Dos días, camping incluido en el abono.', 'festivales', 'Playa de la Malagueta', 'Paseo Marítimo', 'Málaga', 45, '16:00', '2 days',
  'https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=1200&q=80&auto=format&fit=crop', true,
  '[{"nombre":"Abono 2 días","precio":6900,"total":2000},{"nombre":"Abono + camping","precio":8900,"total":500}]'),
@@ -118,9 +118,10 @@ begin
 
     orden := 0;
     for t in select * from jsonb_array_elements(ev.tramos) loop
-      insert into public.tramos (evento_id, nombre, descripcion, precio_centimos, cantidad_total, max_por_pedido, orden)
+      insert into public.tramos (evento_id, nombre, descripcion, precio_centimos, cantidad_total, max_por_pedido, orden, accesible, incluye_acompanante)
       values (nuevo_evento, t ->> 'nombre', t ->> 'descripcion', (t ->> 'precio')::integer, (t ->> 'total')::integer,
-              coalesce((t ->> 'max')::integer, 8), orden);
+              coalesce((t ->> 'max')::integer, 8), orden,
+              coalesce((t ->> 'accesible')::boolean, false), coalesce((t ->> 'accesible')::boolean, false));
       orden := orden + 1;
     end loop;
   end loop;
@@ -223,6 +224,29 @@ begin
   update public.entradas e set creado_en = p.pagado_en from public.pedidos p where p.id = e.pedido_id;
 end $$;
 
+-- Coordenadas aproximadas de los recintos (para «cerca de mí»).
+update public.recintos r set lat = c.lat, lng = c.lng
+  from (values ('Sevilla', 37.3891, -5.9845), ('Granada', 37.1773, -3.5986), ('Jaén', 37.7796, -3.7849), ('Málaga', 36.7213, -4.4214)) as c(ciudad, lat, lng)
+ where r.ciudad = c.ciudad;
+-- Pequeño desplazamiento para que los recintos de una misma ciudad no coincidan.
+update public.recintos set lat = lat + (random() - 0.5) * 0.02, lng = lng + (random() - 0.5) * 0.02;
+
+-- Reventa: el flamenco está agotado y tres fans revenden su entrada.
+do $$
+declare
+  e public.entradas;
+begin
+  for e in
+    select en.* from public.entradas en
+      join public.pedidos p on p.id = en.pedido_id and p.usuario_id = en.usuario_id
+      join public.eventos ev on ev.id = en.evento_id
+     where ev.titulo like 'Flamenco%' and en.estado = 'valida'
+     limit 3
+  loop
+    perform public.publicar_reventa(e.id, e.usuario_id);
+  end loop;
+end $$;
+
 -- Límite por persona (se fija después de generar las ventas de demo).
 update public.eventos set max_por_usuario = 4 where titulo = 'Costa Neón Festival';
 
@@ -259,3 +283,21 @@ end $$;
 insert into public.auditoria (actor_id, accion, entidad, entidad_id, datos, creado_en)
 select organizador_id, 'evento.publicar', 'evento', id::text, jsonb_build_object('titulo', titulo), creado_en
   from public.eventos;
+
+-- Compra con protección de reembolso y una reclamación pendiente de revisar.
+do $$
+declare
+  u uuid := (select id from public.usuarios where email = 'fan2@kroosmaster.dev');
+  ped public.pedidos;
+begin
+  ped := public.reservar_pedido(u, (select id from public.eventos where titulo like 'Noche Indie%'),
+    (select jsonb_build_array(jsonb_build_object('tramo_id', t.id, 'cantidad', 2)) from public.tramos t
+       join public.eventos e on e.id = t.evento_id where e.titulo like 'Noche Indie%'), null, null, true);
+  perform public.confirmar_pedido(ped.id, 'pi_demo_seguro');
+  insert into public.reclamaciones_seguro (pedido_id, usuario_id, motivo)
+  values (ped.id, u, 'Me han operado de urgencia y no podré ir. Adjunto el informe médico si hace falta.');
+end $$;
+
+-- Cola virtual en el festival y registro de fans abierto en el Costa Neón.
+update public.eventos set cola_activa = true, cola_ritmo = 200 where titulo = 'Festival Sierra Sonora 2026';
+update public.eventos set registro_fan_activo = true where titulo = 'Costa Neón Festival';

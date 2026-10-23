@@ -15,6 +15,7 @@ import type { EstadisticasEvento } from '../../lib/tipos';
 import type { PropsPantalla } from '../../navigation/tipos';
 import { color, espacio, radio } from '../../theme';
 import { CodigosEvento } from './CodigosEvento';
+import { Demanda } from './Demanda';
 import { BarraProgreso, ESTADO_EVENTO, Kpi } from './Organizador';
 
 /** Barras de ventas de los últimos 14 días. */
@@ -177,6 +178,7 @@ export function GestionEventoScreen({ navigation, route }: PropsPantalla<'Gestio
                 <T v="cuerpoFuerte">
                   {t.nombre}
                   {t.codigo_acceso ? `  🔑 ${t.codigo_acceso}` : ''}
+                  {t.accesible ? '  ♿' : ''}
                 </T>
                 <T v="nota" c="texto2">
                   {precio(t.precio_centimos)} · {t.cantidad_vendida}/{t.cantidad_total} vendidas{t.cantidad_reservada ? ` · ${t.cantidad_reservada} en pago` : ''}
@@ -204,6 +206,8 @@ export function GestionEventoScreen({ navigation, route }: PropsPantalla<'Gestio
       </View>
 
       <CodigosEvento eventoId={id} editable={abierto} />
+
+      <Demanda evento={evento} editable={abierto} />
 
       <TituloSeccion titulo="Equipo de puerta" />
       <T v="nota" c="texto2" style={{ marginTop: -espacio.s, marginBottom: espacio.m }}>

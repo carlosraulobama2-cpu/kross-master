@@ -23,13 +23,14 @@ const crearSchema = z.object({
     .refine((items) => new Set(items.map((i) => i.tramoId)).size === items.length, 'Tipos de entrada repetidos'),
   codigo: z.string().trim().toUpperCase().max(30).optional(),
   codigoAcceso: z.string().trim().toUpperCase().max(30).optional(),
+  seguro: z.boolean().default(false),
 });
 
 const limiteCompras = rateLimit({ windowMs: 60 * 1000, limit: 10, standardHeaders: 'draft-8', legacyHeaders: false });
 
 pedidosRouter.post('/', limiteCompras, async (req, res) => {
   const yo = usuarioDe(req);
-  const { eventoId, items, codigo, codigoAcceso } = body(req, crearSchema);
+  const { eventoId, items, codigo, codigoAcceso, seguro } = body(req, crearSchema);
 
   // Un pedido abierto por evento: si había otro pendiente se libera su stock.
   const abiertos = ok(
@@ -46,17 +47,32 @@ pedidosRouter.post('/', limiteCompras, async (req, res) => {
     p_items: items.map((i) => ({ tramo_id: i.tramoId, cantidad: i.cantidad })),
     p_codigo: codigo || null,
     p_codigo_acceso: codigoAcceso || null,
+    p_seguro: seguro,
   });
   if (error) throw errorDesdeSql(error);
   const pedido = data as Pedido;
 
-  // Entradas gratuitas: se emiten al momento.
+  res.status(201).json(await iniciarPago(pedido, yo, eventoId));
+});
+
+/** Compra en la reventa oficial: entradas de otros fans a precio original. */
+pedidosRouter.post('/reventa', limiteCompras, async (req, res) => {
+  const yo = usuarioDe(req);
+  const { eventoId, tramoId, cantidad, seguro } = body(
+    req,
+    z.object({ eventoId: uuid, tramoId: uuid, cantidad: z.number().int().min(1).max(10), seguro: z.boolean().default(false) }),
+  );
+  const { data, error } = await db.rpc('reservar_reventa', { p_usuario_id: yo.id, p_evento_id: eventoId, p_tramo_id: tramoId, p_cantidad: cantidad, p_seguro: seguro });
+  if (error) throw errorDesdeSql(error);
+  res.status(201).json(await iniciarPago(data as Pedido, yo, eventoId));
+});
+
+/** Emite al momento si es gratis; si no, crea el PaymentIntent con el importe del servidor. */
+async function iniciarPago(pedido: Pedido, yo: { id: string; email: string }, eventoId: string) {
   if (pedido.total_centimos === 0) {
     await confirmarPagoPedido(pedido.id, null);
-    res.status(201).json({ pedido: await detallePedido(pedido.id, yo.id), clientSecret: null });
-    return;
+    return { pedido: await detallePedido(pedido.id, yo.id), clientSecret: null };
   }
-
   try {
     const pi = await stripe.paymentIntents.create(
       {
@@ -64,20 +80,21 @@ pedidosRouter.post('/', limiteCompras, async (req, res) => {
         currency: pedido.moneda,
         automatic_payment_methods: { enabled: true },
         receipt_email: yo.email,
-        description: `Kroos Master · pedido ${pedido.id.slice(0, 8)}`,
+        description: `Kroos Master · pedido ${pedido.id.slice(0, 8)}${pedido.es_reventa ? ' (reventa)' : ''}`,
         metadata: { pedidoId: pedido.id, usuarioId: yo.id, eventoId },
-        ...(await datosConnect(eventoId, pedido)),
+        // En reventa el cobro se queda en la plataforma, que reembolsa al vendedor.
+        ...(pedido.es_reventa ? {} : await datosConnect(eventoId, pedido)),
       },
       { idempotencyKey: `pedido-${pedido.id}` },
     );
     ok(await db.from('pedidos').update({ stripe_payment_intent_id: pi.id }).eq('id', pedido.id));
-    res.status(201).json({ pedido: await detallePedido(pedido.id, yo.id), clientSecret: pi.client_secret });
+    return { pedido: await detallePedido(pedido.id, yo.id), clientSecret: pi.client_secret };
   } catch (err) {
     await db.rpc('liberar_pedido', { p_pedido_id: pedido.id, p_estado: 'cancelado' });
     logger.error({ err, pedidoId: pedido.id }, 'No se pudo crear el PaymentIntent');
     throw new AppError(502, 'PAGO_NO_DISPONIBLE', 'No se pudo iniciar el pago. Inténtalo de nuevo');
   }
-});
+}
 
 /** Si el organizador tiene Stripe Connect, el dinero va directo a su cuenta. */
 async function datosConnect(eventoId: string, pedido: Pedido) {
@@ -92,7 +109,8 @@ async function datosConnect(eventoId: string, pedido: Pedido) {
   const { data: cfg } = await db.from('configuracion').select('comision_plataforma_porcentaje').eq('id', 1).single();
   const comision = Math.round((pedido.subtotal_centimos * Number(cfg?.comision_plataforma_porcentaje ?? 0)) / 100);
   return {
-    application_fee_amount: pedido.gastos_centimos + comision,
+    // La plataforma se queda gastos, comisión y la protección de reembolso (la paga ella si se reclama).
+    application_fee_amount: pedido.gastos_centimos + pedido.seguro_centimos + comision,
     transfer_data: { destination: org.stripe_account_id },
   };
 }
@@ -102,9 +120,9 @@ async function detallePedido(pedidoId: string, usuarioId: string) {
     await db
       .from('pedidos')
       .select(
-        'id, estado, subtotal_centimos, descuento_centimos, gastos_centimos, total_centimos, moneda, expira_en, pagado_en, creado_en, stripe_payment_intent_id, ' +
+        'id, estado, es_reventa, subtotal_centimos, descuento_centimos, gastos_centimos, seguro_centimos, total_centimos, moneda, expira_en, pagado_en, creado_en, stripe_payment_intent_id, ' +
           'evento:eventos(id, titulo, categoria, inicia_en, recinto, ciudad, imagen_url), ' +
-          'items:pedido_items(cantidad, precio_unitario_centimos, tramo:tramos(id, nombre))',
+          'items:pedido_items(cantidad, precio_unitario_centimos, tramo:tramos(id, nombre)), reclamacion:reclamaciones_seguro(estado, respuesta, creado_en)',
       )
       .eq('id', pedidoId)
       .eq('usuario_id', usuarioId)
@@ -169,4 +187,27 @@ pedidosRouter.post('/:id/cancelar', async (req, res) => {
   }
   await db.rpc('liberar_pedido', { p_pedido_id: id, p_estado: 'cancelado' });
   res.status(204).end();
+});
+
+/** Reclamar la protección de reembolso (antes de que empiece el evento). */
+pedidosRouter.post('/:id/reclamacion', async (req, res) => {
+  const { id } = params(req, idParam);
+  const yo = usuarioDe(req);
+  const { motivo } = body(req, z.object({ motivo: z.string().trim().min(10, 'Cuéntanos un poco más (mínimo 10 caracteres)').max(1000) }));
+  const pedido = ok(await db.from('pedidos').select('estado, seguro_centimos, evento:eventos(inicia_en)').eq('id', id).eq('usuario_id', yo.id).maybeSingle()) as unknown as {
+    estado: string;
+    seguro_centimos: number;
+    evento: { inicia_en: string };
+  } | null;
+  if (!pedido) throw noEncontrado('Pedido');
+  if (pedido.estado !== 'pagado' || pedido.seguro_centimos === 0) {
+    throw new AppError(409, 'SIN_PROTECCION', 'Este pedido no tiene protección de reembolso');
+  }
+  if (new Date(pedido.evento.inicia_en).getTime() < Date.now()) {
+    throw new AppError(409, 'FUERA_DE_PLAZO', 'La protección solo se puede reclamar antes de que empiece el evento');
+  }
+  const { data, error } = await db.from('reclamaciones_seguro').insert({ pedido_id: id, usuario_id: yo.id, motivo }).select().single();
+  if (error?.code === '23505') throw new AppError(409, 'YA_RECLAMADO', 'Ya has enviado una reclamación para este pedido');
+  if (error) throw error;
+  res.status(201).json({ reclamacion: data });
 });

@@ -178,3 +178,49 @@ meRouter.get('/siguiendo', async (req, res) => {
   ) as unknown as { artista: { id: string; nombre: string; imagen_url: string | null } | null; recinto: { id: string; nombre: string; ciudad: string; imagen_url: string | null } | null }[];
   res.json({ artistas: filas.flatMap((f) => (f.artista ? [f.artista] : [])), recintos: filas.flatMap((f) => (f.recinto ? [f.recinto] : [])) });
 });
+
+/**
+ * «Para ti»: puntúa los próximos eventos según artistas y recintos que sigues,
+ * categorías de tus compras y favoritos, y tu ciudad. Explica el motivo.
+ */
+meRouter.get('/recomendaciones', async (req, res) => {
+  const yo = usuarioDe(req);
+  const [perfil, compras, favoritos, siguiendo, catalogo] = await Promise.all([
+    db.from('usuarios').select('ciudad').eq('id', yo.id).single(),
+    db.from('entradas').select('evento_id, evento:eventos(categoria)').eq('usuario_id', yo.id),
+    db.from('favoritos').select('evento_id, evento:eventos(categoria)').eq('usuario_id', yo.id),
+    db.from('seguimientos').select('artista_id, recinto_id').eq('usuario_id', yo.id),
+    db.from('catalogo_eventos').select('*').gte('inicia_en', new Date().toISOString()).order('inicia_en').limit(300),
+  ]);
+  if (catalogo.error) throw catalogo.error;
+
+  const yaTengo = new Set([...(compras.data ?? []), ...(favoritos.data ?? [])].map((c) => c.evento_id));
+  const gustos = new Map<string, number>();
+  for (const c of [...(compras.data ?? []), ...(favoritos.data ?? [])] as unknown as { evento: { categoria: string } | null }[]) {
+    if (c.evento) gustos.set(c.evento.categoria, (gustos.get(c.evento.categoria) ?? 0) + 1);
+  }
+  const artistas = new Set((siguiendo.data ?? []).map((s) => s.artista_id).filter(Boolean));
+  const recintos = new Set((siguiendo.data ?? []).map((s) => s.recinto_id).filter(Boolean));
+  const ciudad = perfil.data?.ciudad?.toLowerCase();
+  const CATEGORIA: Record<string, string> = { conciertos: 'conciertos', festivales: 'festivales', deportes: 'el deporte', teatro: 'el teatro', clubbing: 'el clubbing', otros: 'planes como este' };
+
+  const puntuados = (catalogo.data ?? [])
+    .filter((e) => !yaTengo.has(e.id) && e.disponibles + e.reventa_disponibles > 0)
+    .map((e) => {
+      const motivos: [number, string][] = [];
+      const artista = (e.artistas as { id: string; nombre: string }[]).find((a) => artistas.has(a.id));
+      if (artista) motivos.push([6, `Porque sigues a ${artista.nombre}`]);
+      if (e.recinto_id && recintos.has(e.recinto_id)) motivos.push([4, `En ${e.recinto}, que sigues`]);
+      const gusto = gustos.get(e.categoria) ?? 0;
+      if (gusto) motivos.push([Math.min(gusto, 3) * 1.5, `Te gustan ${CATEGORIA[e.categoria] ?? e.categoria}`]);
+      if (ciudad && e.ciudad.toLowerCase() === ciudad) motivos.push([2, `Cerca de ti, en ${e.ciudad}`]);
+      if (e.destacado) motivos.push([1, 'Destacado esta semana']);
+      motivos.sort((a, b) => b[0] - a[0]);
+      return { evento: e, puntos: motivos.reduce((a, [p]) => a + p, 0), motivo: motivos[0]?.[1] ?? null };
+    })
+    .filter((p) => p.puntos > 0)
+    .sort((a, b) => b.puntos - a.puntos || a.evento.inicia_en.localeCompare(b.evento.inicia_en))
+    .slice(0, 10);
+
+  res.json({ recomendaciones: puntuados.map((p) => ({ ...p.evento, motivo: p.motivo })) });
+});

@@ -6,6 +6,14 @@ import { dinero, haceCuanto } from '../lib/formato';
 import { api, useAccion } from '../lib/hooks';
 import type { Configuracion } from '../lib/tipos';
 
+// Postgres devuelve los numeric como texto: se pasan a número para el formulario.
+const normalizar = (c: Configuracion): Configuracion => ({
+  ...c,
+  gastos_gestion_porcentaje: Number(c.gastos_gestion_porcentaje),
+  comision_plataforma_porcentaje: Number(c.comision_plataforma_porcentaje),
+  seguro_porcentaje: Number(c.seguro_porcentaje),
+});
+
 export function Ajustes() {
   const { data, isPending, error, refetch } = useQuery({
     queryKey: ['configuracion'],
@@ -13,7 +21,7 @@ export function Ajustes() {
   });
   const [form, setForm] = useState<Configuracion | null>(null);
   useEffect(() => {
-    if (data) setForm({ ...data, gastos_gestion_porcentaje: Number(data.gastos_gestion_porcentaje), comision_plataforma_porcentaje: Number(data.comision_plataforma_porcentaje) });
+    if (data) setForm(normalizar(data));
   }, [data]);
 
   const guardar = useAccion(
@@ -28,7 +36,7 @@ export function Ajustes() {
 
   const set = <K extends keyof Configuracion>(k: K, v: Configuracion[K]) => setForm((f) => (f ? { ...f, [k]: v } : f));
   const ejemplo = form ? Math.round(2000 * (form.gastos_gestion_porcentaje / 100)) + form.gastos_gestion_fijo_centimos : 0;
-  const cambiado = form && data && JSON.stringify(form) !== JSON.stringify({ ...data, gastos_gestion_porcentaje: Number(data.gastos_gestion_porcentaje), comision_plataforma_porcentaje: Number(data.comision_plataforma_porcentaje) });
+  const cambiado = form && data && JSON.stringify(form) !== JSON.stringify(normalizar(data));
 
   function enviar(e: FormEvent) {
     e.preventDefault();
@@ -68,6 +76,11 @@ export function Ajustes() {
                 <label htmlFor="comision">Comisión al organizador (%)</label>
                 <input id="comision" className="entrada" type="number" min={0} max={30} step={0.1} value={form.comision_plataforma_porcentaje} onChange={(e) => set('comision_plataforma_porcentaje', Number(e.target.value))} />
                 <span className="ayuda">Se descuenta de lo que cobra el organizador con Stripe Connect.</span>
+              </div>
+              <div className="campo">
+                <label htmlFor="seguro">Protección de reembolso (%)</label>
+                <input id="seguro" className="entrada" type="number" min={0} max={30} step={0.5} value={form.seguro_porcentaje} onChange={(e) => set('seguro_porcentaje', Number(e.target.value))} />
+                <span className="ayuda">Precio opcional que paga el comprador para poder reclamar si no puede ir.</span>
               </div>
               <div className="campo">
                 <label htmlFor="reserva">Tiempo para pagar (minutos)</label>

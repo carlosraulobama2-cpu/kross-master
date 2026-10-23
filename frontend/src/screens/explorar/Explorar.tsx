@@ -7,7 +7,9 @@ import { ErrorEstado, Esqueleto, Vacio } from '../../components/estados';
 import { FilaEvento, TarjetaDestacada, TarjetaEvento } from '../../components/evento';
 import { TituloSeccion } from '../../components/pantalla';
 import { useAuth } from '../../lib/auth';
-import { useCiudades, useEventos, useNotificaciones } from '../../lib/consultas';
+import { useCiudades, useEventos, useNotificaciones, useRecomendaciones } from '../../lib/consultas';
+import * as Location from 'expo-location';
+import { useAviso } from '../../components/aviso';
 import type { PropsPestana } from '../../navigation/tipos';
 import { CATEGORIAS, color, espacio, radio } from '../../theme';
 
@@ -32,6 +34,8 @@ export function ExplorarScreen({ navigation }: PropsPestana<'Explorar'>) {
   const anchoMax = Math.min(width, 520);
   const { usuario } = useAuth();
   const [ciudad, setCiudad] = useState<string | undefined>();
+  const [ubicacion, setUbicacion] = useState<{ lat: number; lng: number } | null>(null);
+  const avisar = useAviso();
   const [eligiendoCiudad, setEligiendoCiudad] = useState(false);
 
   useEffect(() => {
@@ -39,13 +43,33 @@ export function ExplorarScreen({ navigation }: PropsPestana<'Explorar'>) {
   }, []);
   const elegirCiudad = (c: string | undefined) => {
     setCiudad(c);
+    setUbicacion(null);
     setEligiendoCiudad(false);
     void AsyncStorage.setItem(CLAVE_CIUDAD, c ?? '').catch(() => undefined);
   };
 
-  const destacados = useEventos({ destacados: true, ciudad });
-  const semana = useEventos({ ciudad, hasta: useMemo(finDeSemana, []) });
-  const proximos = useEventos({ ciudad });
+  async function cercaDeMi() {
+    setEligiendoCiudad(false);
+    try {
+      const permiso = await Location.requestForegroundPermissionsAsync();
+      if (!permiso.granted) {
+        avisar('Necesitamos tu ubicación para mostrarte planes cerca', 'info');
+        return;
+      }
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      setUbicacion({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      setCiudad(undefined);
+    } catch {
+      avisar('No hemos podido obtener tu ubicación', 'error');
+    }
+  }
+
+  const zona = ubicacion ? { lat: ubicacion.lat, lng: ubicacion.lng, km: 60, orden: 'distancia' as const } : { ciudad };
+
+  const destacados = useEventos({ destacados: true, ...zona });
+  const semana = useEventos({ ...zona, hasta: useMemo(finDeSemana, []) });
+  const proximos = useEventos(zona);
+  const { data: paraTi } = useRecomendaciones();
   const { data: notificaciones } = useNotificaciones();
   const sinLeer = notificaciones?.filter((n) => !n.leida).length ?? 0;
 
@@ -84,7 +108,7 @@ export function ExplorarScreen({ navigation }: PropsPestana<'Explorar'>) {
               {usuario?.nombre ? `, ${usuario.nombre.split(' ')[0]}` : ''} 👋
             </T>
             <Pulsable onPress={() => setEligiendoCiudad(true)} style={s.ciudad} accessibilityLabel="Cambiar ciudad" escala={0.98}>
-              <T v="titulo">{ciudad ?? 'Toda España'}</T>
+              <T v="titulo">{ubicacion ? 'Cerca de ti' : (ciudad ?? 'Toda España')}</T>
               <Icono n="chevron-down" tam={20} c={color.acento} />
             </Pulsable>
           </View>
@@ -153,6 +177,23 @@ export function ExplorarScreen({ navigation }: PropsPestana<'Explorar'>) {
               </>
             )}
 
+            {/* Para ti */}
+            {(paraTi?.length ?? 0) > 0 && !ubicacion && !ciudad && (
+              <>
+                <View style={s.margen}>
+                  <TituloSeccion titulo="Para ti" />
+                </View>
+                <FlatList
+                  horizontal
+                  data={paraTi}
+                  keyExtractor={(e) => e.id}
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ paddingHorizontal: espacio.xl, gap: espacio.l }}
+                  renderItem={({ item }) => <TarjetaEvento evento={item} onPress={() => abrir(item.id)} />}
+                />
+              </>
+            )}
+
             {/* Esta semana */}
             {listaSemana.length > 0 && (
               <>
@@ -189,9 +230,9 @@ export function ExplorarScreen({ navigation }: PropsPestana<'Explorar'>) {
               ) : listaProximos.length === 0 ? (
                 <Vacio
                   icono="calendar-outline"
-                  titulo={ciudad ? `Nada en ${ciudad} por ahora` : 'Aún no hay eventos'}
+                  titulo={ubicacion ? 'Nada cerca de ti por ahora' : ciudad ? `Nada en ${ciudad} por ahora` : 'Aún no hay eventos'}
                   texto={ciudad ? 'Prueba con otra ciudad o mira todo lo que hay en España.' : 'Vuelve pronto: se publican eventos nuevos cada semana.'}
-                  accion={ciudad ? <Boton v="secundario" bloque={false} onPress={() => elegirCiudad(undefined)}>Ver toda España</Boton> : undefined}
+                  accion={ciudad || ubicacion ? <Boton v="secundario" bloque={false} onPress={() => elegirCiudad(undefined)}>Ver toda España</Boton> : undefined}
                 />
               ) : (
                 <>
@@ -210,12 +251,12 @@ export function ExplorarScreen({ navigation }: PropsPestana<'Explorar'>) {
         )}
       </ScrollView>
 
-      <SelectorCiudad visible={eligiendoCiudad} actual={ciudad} onElegir={elegirCiudad} onCerrar={() => setEligiendoCiudad(false)} />
+      <SelectorCiudad visible={eligiendoCiudad} actual={ubicacion ? 'cerca' : ciudad} onElegir={elegirCiudad} onCerca={() => void cercaDeMi()} onCerrar={() => setEligiendoCiudad(false)} />
     </View>
   );
 }
 
-function SelectorCiudad({ visible, actual, onElegir, onCerrar }: { visible: boolean; actual?: string; onElegir: (c?: string) => void; onCerrar: () => void }) {
+function SelectorCiudad({ visible, actual, onElegir, onCerca, onCerrar }: { visible: boolean; actual?: string; onElegir: (c?: string) => void; onCerca: () => void; onCerrar: () => void }) {
   const { data } = useCiudades();
   const insets = useSafeAreaInsets();
   const opciones = [{ nombre: undefined as string | undefined, eventos: data?.reduce((a, c) => a + c.eventos, 0) ?? 0 }, ...(data ?? [])];
@@ -227,6 +268,13 @@ function SelectorCiudad({ visible, actual, onElegir, onCerrar }: { visible: bool
         <T v="subtitulo" style={{ marginBottom: espacio.m }}>
           ¿Dónde buscas planes?
         </T>
+        <Pulsable onPress={onCerca} style={s.opcion} escala={0.98} accessibilityState={{ selected: actual === 'cerca' }}>
+          <Icono n="navigate" c={color.acento} />
+          <T v="cuerpoFuerte" c="acento" style={{ flex: 1 }}>
+            Cerca de mí
+          </T>
+          {actual === 'cerca' && <Icono n="checkmark" c={color.acento} />}
+        </Pulsable>
         {opciones.map((c) => {
           const activa = c.nombre === actual;
           return (

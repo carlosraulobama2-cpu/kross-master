@@ -26,6 +26,9 @@ const ERRORES_SQL: Record<string, AppError> = {
   PEDIDO_NO_REEMBOLSABLE: conflicto('PEDIDO_NO_REEMBOLSABLE', 'Este pedido no se puede reembolsar'),
   CODIGO_INVALIDO: peticionInvalida('CODIGO_INVALIDO', 'El código de descuento no es válido o ya se ha agotado'),
   PREVENTA_CODIGO: peticionInvalida('PREVENTA_CODIGO', 'Necesitas el código de preventa para estas entradas'),
+  COLA_TURNO: conflicto('COLA_TURNO', 'Hay mucha demanda: entra en la cola virtual para comprar'),
+  REVENTA_NO_PERMITIDA: conflicto('REVENTA_NO_PERMITIDA', 'Esta entrada no se puede poner en reventa'),
+  REVENTA_NO_CANCELABLE: conflicto('REVENTA_NO_CANCELABLE', 'Esta entrada ya no está en reventa'),
   LIMITE_POR_USUARIO: conflicto('LIMITE_POR_USUARIO', 'Has alcanzado el máximo de entradas por persona para este evento'),
 };
 

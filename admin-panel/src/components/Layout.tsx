@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router';
 import { useAuth } from '../lib/auth';
-import { IconoAjustes, IconoAuditoria, IconoEventos, IconoMenu, IconoPedidos, IconoResumen, IconoSalir, IconoUsuarios } from './iconos';
+import { IconoAjustes, IconoAuditoria, IconoEventos, IconoMenu, IconoPedidos, IconoReembolso, IconoResumen, IconoSalir, IconoUsuarios } from './iconos';
 import { Boton } from './ui';
 
 const SECCIONES = [
   { a: '/', etiqueta: 'Resumen', icono: IconoResumen },
   { a: '/eventos', etiqueta: 'Eventos', icono: IconoEventos },
   { a: '/pedidos', etiqueta: 'Pedidos', icono: IconoPedidos },
+  { a: '/reclamaciones', etiqueta: 'Reclamaciones', icono: IconoReembolso },
   { a: '/usuarios', etiqueta: 'Usuarios', icono: IconoUsuarios },
   { a: '/auditoria', etiqueta: 'Auditoría', icono: IconoAuditoria },
   { a: '/ajustes', etiqueta: 'Ajustes', icono: IconoAjustes },

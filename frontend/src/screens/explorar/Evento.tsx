@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useMemo, useRef, useState } from 'react';
-import { Animated, ScrollView, Share, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native';
+import { Animated, ScrollView, Share, StyleSheet, Switch, TextInput, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAviso } from '../../components/aviso';
 import { Boton, BotonIcono, Fila, Icono, Insignia, Pulsable, Separador, T, type NombreIcono } from '../../components/base';
@@ -40,8 +40,14 @@ export function EventoScreen({ navigation, route }: PropsPantalla<'Evento'>) {
   const [descripcionCompleta, setDescripcionCompleta] = useState(false);
   const [codigo, setCodigo] = useState<CodigoDescuento | null>(null);
   const [esperando, setEsperando] = useState(false);
+  const [reventa, setReventa] = useState<{ tramoId: string; cantidad: number } | null>(null);
+  const [seguro, setSeguro] = useState(false);
+  const [uniendose, setUniendose] = useState(false);
 
-  const seleccion = useMemo(() => Object.entries(cantidades).filter(([, n]) => n > 0), [cantidades]);
+  const seleccion = useMemo(
+    () => (reventa && reventa.cantidad > 0 ? [[reventa.tramoId, reventa.cantidad] as [string, number]] : Object.entries(cantidades).filter(([, n]) => n > 0)),
+    [cantidades, reventa],
+  );
   const nEntradas = seleccion.reduce((a, [, n]) => a + n, 0);
   const tramoDe = (tid: string) => evento?.tramos.find((t) => t.id === tid);
   const subtotal = seleccion.reduce((a, [tid, n]) => a + n * (tramoDe(tid)?.precio_centimos ?? 0), 0);
@@ -53,6 +59,10 @@ export function EventoScreen({ navigation, route }: PropsPantalla<'Evento'>) {
   const descuento = !codigo || aplicable === 0 ? 0 : codigo.tipo === 'porcentaje' ? Math.round((aplicable * codigo.valor) / 100) : Math.min(codigo.valor, aplicable);
   const base = subtotal - descuento;
   const gastos = base > 0 && config ? Math.round((base * Number(config.gastos_gestion_porcentaje)) / 100) + config.gastos_gestion_fijo_centimos * nEntradas : 0;
+  const costeSeguro = base > 0 && config ? Math.round((base * Number(config.seguro_porcentaje)) / 100) : 0;
+  const totalEstimado = base + gastos + (seguro ? costeSeguro : 0);
+  const conCola = Boolean(usuario && evento?.cola_activa);
+  const turnoOk = !conCola || Boolean(evento?.cola?.admitido);
 
   if (error && !evento) {
     return (
@@ -70,16 +80,23 @@ export function EventoScreen({ navigation, route }: PropsPantalla<'Evento'>) {
     }
     setComprando(true);
     try {
-      const r = await api<{ pedido: Pedido; clientSecret: string | null }>('/pedidos', {
-        method: 'POST',
-        body: {
-          eventoId: id,
-          items: seleccion.map(([tramoId, cantidad]) => ({ tramoId, cantidad })),
-          codigo: codigo?.codigo,
-          codigoAcceso: acceso,
-        },
-      });
+      const r = reventa
+        ? await api<{ pedido: Pedido; clientSecret: string | null }>('/pedidos/reventa', {
+            method: 'POST',
+            body: { eventoId: id, tramoId: reventa.tramoId, cantidad: reventa.cantidad, seguro },
+          })
+        : await api<{ pedido: Pedido; clientSecret: string | null }>('/pedidos', {
+            method: 'POST',
+            body: {
+              eventoId: id,
+              items: seleccion.map(([tramoId, cantidad]) => ({ tramoId, cantidad })),
+              codigo: codigo?.codigo,
+              codigoAcceso: acceso,
+              seguro,
+            },
+          });
       setCantidades({});
+      setReventa(null);
       haptica.exito();
       if (r.pedido.estado === 'pagado') navigation.navigate('Confirmacion', { pedidoId: r.pedido.id });
       else navigation.navigate('Pago', { pedidoId: r.pedido.id, clientSecret: r.clientSecret });
@@ -107,6 +124,31 @@ export function EventoScreen({ navigation, route }: PropsPantalla<'Evento'>) {
     }
   }
 
+  async function entrarEnCola() {
+    if (!usuario) return navigation.navigate('Acceso');
+    setUniendose(true);
+    try {
+      await api(`/eventos/${id}/cola`, { method: 'POST' });
+      navigation.navigate('Cola', { eventoId: id, titulo: evento?.titulo ?? '' });
+    } catch (e) {
+      avisar(mensajeDe(e), 'error');
+    } finally {
+      setUniendose(false);
+    }
+  }
+
+  async function inscribirseFan() {
+    if (!usuario) return navigation.navigate('Acceso');
+    try {
+      await api(`/eventos/${id}/registro-fan`, { method: 'POST' });
+      haptica.exito();
+      avisar('¡Inscrito! Te avisaremos del resultado del sorteo', 'exito');
+      await qc.invalidateQueries({ queryKey: ['evento', id] });
+    } catch (e) {
+      avisar(mensajeDe(e), 'error');
+    }
+  }
+
   const compartir = () =>
     evento &&
     Share.share({
@@ -118,7 +160,7 @@ export function EventoScreen({ navigation, route }: PropsPantalla<'Evento'>) {
   const desplazamientoImagen = scrollY.interpolate({ inputRange: [-200, 0, altoImagen], outputRange: [-100, 0, altoImagen * 0.4] });
 
   const categoria = CATEGORIAS.find((c) => c.id === evento?.categoria);
-  const aLaVenta = evento?.tramos.some((t) => t.estado === 'a_la_venta');
+  const aLaVenta = evento?.tramos.some((t) => t.estado === 'a_la_venta' || t.reventa_disponibles > 0);
   const irAEntradas = () => scroll.current?.scrollTo({ y: altoImagen - espacio.enorme + yEntradas.current - 80, animated: true });
 
   return (
@@ -235,14 +277,31 @@ export function EventoScreen({ navigation, route }: PropsPantalla<'Evento'>) {
                   </T>
                 </Fila>
                 {evento.tramos.length === 0 && <T c="texto2">Las entradas aún no están disponibles.</T>}
+                {conCola && evento.cola?.admitido && evento.cola.expira_en && (
+                  <View style={s.turno}>
+                    <Icono n="checkmark-circle" c={color.acento} />
+                    <T v="cuerpoFuerte" style={{ flex: 1 }}>
+                      ¡Es tu turno! Compra antes de las {hora(evento.cola.expira_en)}
+                    </T>
+                  </View>
+                )}
                 {evento.tramos.map((t) => (
                   <FilaTramo
                     key={t.id}
                     tramo={t}
                     cantidad={cantidades[t.id] ?? 0}
+                    bloqueado={!turnoOk}
                     onCambio={(n) => {
                       haptica.toque();
+                      setReventa(null);
                       setCantidades((c) => ({ ...c, [t.id]: n }));
+                    }}
+                    cantidadReventa={reventa?.tramoId === t.id ? reventa.cantidad : 0}
+                    onCambioReventa={(n) => {
+                      haptica.toque();
+                      setCantidades({});
+                      setCodigo(null);
+                      setReventa(n > 0 ? { tramoId: t.id, cantidad: n } : null);
                     }}
                   />
                 ))}
@@ -275,8 +334,22 @@ export function EventoScreen({ navigation, route }: PropsPantalla<'Evento'>) {
                     </Pulsable>
                   </View>
                 )}
-                {nEntradas > 0 && subtotal > 0 && <CodigoPromo eventoId={id} codigo={codigo} onCambio={setCodigo} />}
+                {nEntradas > 0 && subtotal > 0 && !reventa && <CodigoPromo eventoId={id} codigo={codigo} onCambio={setCodigo} />}
+                {nEntradas > 0 && base > 0 && (
+                  <Pulsable onPress={() => setSeguro((v) => !v)} style={[s.seguro, seguro && { borderColor: color.acento }]} escala={0.99} accessibilityRole="switch" accessibilityState={{ checked: seguro }}>
+                    <Icono n="umbrella-outline" c={seguro ? color.acento : color.texto2} />
+                    <View style={{ flex: 1, gap: 2 }}>
+                      <T v="cuerpoFuerte">Protección de reembolso · +{precioExacto(costeSeguro)}</T>
+                      <T v="nota" c="texto2">
+                        Si no puedes ir por enfermedad, un imprevisto o un viaje cancelado, te devolvemos el precio de las entradas.
+                      </T>
+                    </View>
+                    <Switch value={seguro} onValueChange={setSeguro} trackColor={{ true: color.acento, false: color.superficie3 }} thumbColor={color.blanco} />
+                  </Pulsable>
+                )}
               </View>
+
+              {(evento.registro_fan_activo || evento.registro_fan) && <TarjetaFans estado={evento.registro_fan} abierto={evento.registro_fan_activo} onInscribirse={() => void inscribirseFan()} />}
 
               <AntesDeIr evento={evento} />
 
@@ -321,14 +394,32 @@ export function EventoScreen({ navigation, route }: PropsPantalla<'Evento'>) {
 
       {evento && (
         <BarraInferior>
-          {nEntradas > 0 ? (
+          {conCola && !evento.cola?.admitido ? (
+            <Fila gap={espacio.l}>
+              <View style={{ flex: 1 }}>
+                <T v="cuerpoFuerte">{evento.cola?.en_cola ? 'Estás en la cola' : 'Venta con cola virtual'}</T>
+                <T v="nota" c="texto2">
+                  {evento.cola?.en_cola ? `${evento.cola.por_delante ?? 0} personas delante · ~${evento.cola.minutos_estimados ?? 1} min` : 'Hay mucha demanda: coge tu turno'}
+                </T>
+              </View>
+              <Boton
+                bloque={false}
+                icono={evento.cola?.en_cola ? 'hourglass-outline' : 'people'}
+                cargando={uniendose}
+                onPress={() => (evento.cola?.en_cola ? navigation.navigate('Cola', { eventoId: id, titulo: evento.titulo }) : void entrarEnCola())}
+              >
+                {evento.cola?.en_cola ? 'Ver mi turno' : 'Entrar en la cola'}
+              </Boton>
+            </Fila>
+          ) : nEntradas > 0 ? (
             <Fila gap={espacio.l}>
               <View style={{ flex: 1 }}>
                 <T v="nota" c="texto2">
                   {plural(nEntradas, 'entrada', 'entradas')}
+                  {reventa ? ' de reventa' : ''}
                   {descuento > 0 ? ` · −${precioExacto(descuento)}` : ''}
                 </T>
-                <T v="subtitulo">{base === 0 ? 'Gratis' : precioExacto(base + gastos)}</T>
+                <T v="subtitulo">{base === 0 ? 'Gratis' : precioExacto(totalEstimado)}</T>
               </View>
               <Boton onPress={() => void comprar()} cargando={comprando} bloque={false} icono="arrow-forward" style={{ minWidth: 160 }}>
                 {base === 0 ? 'Reservar' : 'Continuar'}
@@ -340,7 +431,7 @@ export function EventoScreen({ navigation, route }: PropsPantalla<'Evento'>) {
                 <T v="nota" c="texto2">
                   Desde
                 </T>
-                <T v="subtitulo">{precio(Math.min(...evento.tramos.filter((t) => t.estado === 'a_la_venta').map((t) => t.precio_total_centimos)))}</T>
+                <T v="subtitulo">{precio(Math.min(...evento.tramos.filter((t) => t.estado === 'a_la_venta' || t.reventa_disponibles > 0).map((t) => t.precio_total_centimos)))}</T>
               </View>
               <Boton bloque={false} icono="ticket" style={{ minWidth: 160 }} onPress={irAEntradas}>
                 Elegir entradas
@@ -401,40 +492,105 @@ function Dato({ icono, titulo, texto, onPress, accion }: { icono: NombreIcono; t
   );
 }
 
-function FilaTramo({ tramo, cantidad, onCambio }: { tramo: Tramo; cantidad: number; onCambio: (n: number) => void }) {
+function FilaTramo({
+  tramo,
+  cantidad,
+  onCambio,
+  bloqueado,
+  cantidadReventa,
+  onCambioReventa,
+}: {
+  tramo: Tramo;
+  cantidad: number;
+  onCambio: (n: number) => void;
+  bloqueado: boolean;
+  cantidadReventa: number;
+  onCambioReventa: (n: number) => void;
+}) {
   const disponible = tramo.estado === 'a_la_venta';
   const max = Math.min(tramo.max_por_pedido, tramo.disponibles);
   const pocas = disponible && tramo.disponibles <= 20;
+  const reventa = tramo.reventa_disponibles > 0 && !disponible;
+  const elegida = cantidad > 0 || cantidadReventa > 0;
   return (
-    <View style={[s.tramo, cantidad > 0 && { borderColor: color.acento, backgroundColor: 'rgba(0,255,135,0.05)' }, !disponible && { opacity: 0.6 }]}>
-      <View style={{ flex: 1, gap: 2 }}>
-        <Fila gap={espacio.s}>
-          <T v="cuerpoFuerte" style={{ fontWeight: '700', flexShrink: 1 }}>
-            {tramo.nombre}
-          </T>
-          {tramo.preventa && <Insignia texto="Preventa" tono="info" icono="lock-open" />}
-        </Fila>
-        {tramo.descripcion ? (
-          <T v="nota" c="texto2">
-            {tramo.descripcion}
-          </T>
-        ) : null}
-        <Fila gap={espacio.s} style={{ marginTop: 4, flexWrap: 'wrap' }}>
-          <T v="cabecera">{precio(tramo.precio_total_centimos)}</T>
-          {tramo.gastos_centimos > 0 && (
-            <T v="nota" c="texto3">
-              incl. {precioExacto(tramo.gastos_centimos)} de gastos
+    <View style={[s.tramo, elegida && { borderColor: color.acento, backgroundColor: 'rgba(0,255,135,0.05)' }, !disponible && !reventa && { opacity: 0.6 }]}>
+      <Fila gap={espacio.m}>
+        <View style={{ flex: 1, gap: 2 }}>
+          <Fila gap={espacio.s} style={{ flexWrap: 'wrap' }}>
+            <T v="cuerpoFuerte" style={{ fontWeight: '700', flexShrink: 1 }}>
+              {tramo.nombre}
+            </T>
+            {tramo.preventa && <Insignia texto="Preventa" tono="info" icono="lock-open" />}
+            {tramo.accesible && <Insignia texto="Accesible" tono="info" icono="accessibility" />}
+          </Fila>
+          {tramo.descripcion ? (
+            <T v="nota" c="texto2">
+              {tramo.descripcion}
+            </T>
+          ) : null}
+          {tramo.incluye_acompanante && (
+            <T v="nota" c="info">
+              Incluye entrada gratis para acompañante
             </T>
           )}
-        </Fila>
-        <Fila gap={espacio.s} style={{ marginTop: 2 }}>
-          {tramo.estado === 'agotado' && <Insignia texto="Agotado" tono="peligro" />}
-          {tramo.estado === 'proximamente' && <Insignia texto="Próximamente" tono="info" />}
-          {tramo.estado === 'finalizado' && <Insignia texto="Venta cerrada" />}
-          {pocas && <Insignia texto={`Quedan ${tramo.disponibles}`} tono="aviso" />}
-        </Fila>
-      </View>
-      {disponible && <Contador valor={cantidad} max={max} onCambio={onCambio} />}
+          <Fila gap={espacio.s} style={{ marginTop: 4, flexWrap: 'wrap' }}>
+            <T v="cabecera">{precio(tramo.precio_total_centimos)}</T>
+            {tramo.gastos_centimos > 0 && (
+              <T v="nota" c="texto3">
+                incl. {precioExacto(tramo.gastos_centimos)} de gastos
+              </T>
+            )}
+          </Fila>
+          <Fila gap={espacio.s} style={{ marginTop: 2 }}>
+            {tramo.estado === 'agotado' && <Insignia texto="Agotado" tono="peligro" />}
+            {tramo.estado === 'proximamente' && <Insignia texto="Próximamente" tono="info" />}
+            {tramo.estado === 'finalizado' && <Insignia texto="Venta cerrada" />}
+            {pocas && <Insignia texto={`Quedan ${tramo.disponibles}`} tono="aviso" />}
+          </Fila>
+        </View>
+        {disponible && !bloqueado && <Contador valor={cantidad} max={max} onCambio={onCambio} />}
+        {disponible && bloqueado && <Icono n="lock-closed-outline" c={color.texto3} />}
+      </Fila>
+      {reventa && (
+        <View style={s.reventa}>
+          <Icono n="swap-horizontal" c={color.info} />
+          <View style={{ flex: 1 }}>
+            <T v="cuerpoFuerte">Reventa oficial</T>
+            <T v="nota" c="texto2">
+              {plural(tramo.reventa_disponibles, 'entrada', 'entradas')} de otros fans a precio original
+            </T>
+          </View>
+          {!bloqueado && <Contador valor={cantidadReventa} max={Math.min(tramo.reventa_disponibles, 10)} onCambio={onCambioReventa} />}
+        </View>
+      )}
+    </View>
+  );
+}
+
+/** Registro de fans verificados: inscripción y resultado del sorteo. */
+function TarjetaFans({ estado, abierto, onInscribirse }: { estado: EventoDetalle['registro_fan']; abierto: boolean; onInscribirse: () => void }) {
+  const textos = {
+    inscrito: ['Estás inscrito', 'Cuando se haga el sorteo te avisaremos. Si sales elegido, verás aquí la preventa.'],
+    seleccionado: ['¡Has sido seleccionado!', 'Ya puedes comprar en la preventa para fans: la tienes arriba, en Entradas.'],
+    no_seleccionado: ['Esta vez no hubo suerte', 'Te avisaremos cuando abra la venta general.'],
+  } as const;
+  const [titulo, texto] = estado ? textos[estado] : ['Registro de fans verificados', 'Inscríbete para optar a la preventa. Se sortean las plazas entre los fans registrados.'];
+  return (
+    <View style={[s.tarjeta, { padding: espacio.l, gap: espacio.m }, estado === 'seleccionado' && { borderColor: color.acento }]}>
+      <Fila gap={espacio.m} style={{ alignItems: 'flex-start' }}>
+        <Icono n={estado === 'seleccionado' ? 'trophy' : 'shield-checkmark-outline'} c={estado === 'seleccionado' ? color.acento : color.info} />
+        <View style={{ flex: 1, gap: 2 }}>
+          <T v="cuerpoFuerte">{titulo}</T>
+          <T v="nota" c="texto2">
+            {texto}
+          </T>
+        </View>
+      </Fila>
+      {!estado && abierto && (
+        <Boton v="secundario" pequeno icono="person-add-outline" onPress={onInscribirse}>
+          Inscribirme
+        </Boton>
+      )}
     </View>
   );
 }
@@ -595,7 +751,7 @@ const s = StyleSheet.create({
   cuerpo: { paddingHorizontal: espacio.xl, maxWidth: 720, width: '100%', alignSelf: 'center' },
   tarjeta: { marginTop: espacio.xl, borderRadius: radio.l, backgroundColor: color.superficie, borderWidth: 1, borderColor: color.borde, overflow: 'hidden' },
   datoIcono: { width: 40, height: 40, borderRadius: radio.m, backgroundColor: color.acentoSuave, alignItems: 'center', justifyContent: 'center' },
-  tramo: { flexDirection: 'row', alignItems: 'center', gap: espacio.m, padding: espacio.l, borderRadius: radio.l, borderWidth: 1.5, borderColor: color.borde, backgroundColor: color.superficie },
+  tramo: { padding: espacio.l, borderRadius: radio.l, borderWidth: 1.5, borderColor: color.borde, backgroundColor: color.superficie },
   cabeceraFondo: { position: 'absolute', top: 0, left: 0, right: 0, backgroundColor: color.fondo, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: color.borde },
   cabeceraFlotante: { position: 'absolute', left: espacio.l, right: espacio.l, flexDirection: 'row', alignItems: 'center' },
   artista: { flexDirection: 'row', alignItems: 'center', gap: espacio.s, paddingLeft: 4, paddingRight: espacio.m, height: 44, borderRadius: radio.total, backgroundColor: color.superficie, borderWidth: 1, borderColor: color.borde },
@@ -603,5 +759,8 @@ const s = StyleSheet.create({
   enlace: { flexDirection: 'row', alignItems: 'center', gap: espacio.s, alignSelf: 'flex-start', paddingVertical: espacio.xs },
   cajaCodigo: { flexDirection: 'row', alignItems: 'center', gap: espacio.s, minHeight: 56, paddingLeft: 14, paddingRight: 8, borderRadius: radio.m, borderWidth: 1.5, borderColor: color.borde, backgroundColor: color.superficie },
   entradaCodigo: { flex: 1, ...tipo.cuerpoFuerte, color: color.texto, letterSpacing: 1.5, outlineStyle: 'none' } as object,
+  turno: { flexDirection: 'row', alignItems: 'center', gap: espacio.m, padding: espacio.l, borderRadius: radio.l, backgroundColor: color.acentoSuave, borderWidth: 1, borderColor: color.acento },
+  reventa: { flexDirection: 'row', alignItems: 'center', gap: espacio.m, marginTop: espacio.m, paddingTop: espacio.m, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: color.borde },
+  seguro: { flexDirection: 'row', alignItems: 'center', gap: espacio.m, padding: espacio.l, borderRadius: radio.l, borderWidth: 1.5, borderColor: color.borde, backgroundColor: color.superficie },
   errorPreventa: { flexDirection: 'row', alignItems: 'center', gap: espacio.m, padding: espacio.m, borderRadius: radio.m, backgroundColor: color.peligroSuave },
 });

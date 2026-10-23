@@ -103,6 +103,11 @@ export function PagoScreen({ navigation, route }: PropsPantalla<'Pago'>) {
               <T v="cuerpoFuerte" numberOfLines={2} style={{ fontWeight: '700' }}>
                 {pedido.evento.titulo}
               </T>
+              {pedido.es_reventa && (
+                <T v="nota" c="info">
+                  Reventa oficial · precio original
+                </T>
+              )}
               <T v="nota" c="texto2">
                 {cuandoEs(pedido.evento.inicia_en)}
               </T>
@@ -133,6 +138,12 @@ export function PagoScreen({ navigation, route }: PropsPantalla<'Pago'>) {
               <T c="texto2">Gastos de gestión</T>
               <T v="cuerpoFuerte">{precioExacto(pedido.gastos_centimos)}</T>
             </Fila>
+            {pedido.seguro_centimos > 0 && (
+              <Fila style={{ justifyContent: 'space-between' }}>
+                <T c="texto2">Protección de reembolso</T>
+                <T v="cuerpoFuerte">{precioExacto(pedido.seguro_centimos)}</T>
+              </Fila>
+            )}
             <Separador m={espacio.xs} />
             <Fila style={{ justifyContent: 'space-between' }}>
               <T v="cabecera">Total</T>

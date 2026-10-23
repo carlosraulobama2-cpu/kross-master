@@ -19,6 +19,16 @@ const schema = z.object({
     .url()
     .optional()
     .transform((v) => v?.replace(/\/$/, '')),
+  // Wallet (opcional). Las claves PEM pueden ir en una línea con \n.
+  APPLE_PASS_TYPE_ID: z.string().optional(),
+  APPLE_TEAM_ID: z.string().optional(),
+  APPLE_PASS_CERT: z.string().optional(),
+  APPLE_PASS_KEY: z.string().optional(),
+  APPLE_PASS_KEY_PASSPHRASE: z.string().optional(),
+  APPLE_WWDR_CERT: z.string().optional(),
+  GOOGLE_WALLET_ISSUER_ID: z.string().optional(),
+  GOOGLE_WALLET_SA_EMAIL: z.string().email().optional(),
+  GOOGLE_WALLET_SA_KEY: z.string().optional(),
   /** Solo desarrollo: apunta a stripe-mock (p. ej. http://localhost:12111). */
   STRIPE_API_URL: z.string().url().optional(),
 });
