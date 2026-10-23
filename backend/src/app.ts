@@ -1,74 +1,59 @@
-require('dotenv').config();
-import express from 'express';
 import cors from 'cors';
-import path from 'path';
+import express from 'express';
+import helmet from 'helmet';
+import { pinoHttp } from 'pino-http';
+import { env, esProduccion } from './config/env';
+import { logger } from './lib/logger';
+import { errorHandler, noEncontradoHandler } from './middleware/errors';
+import { adminRouter } from './modules/admin';
+import { authRouter } from './modules/auth';
+import { entradasRouter, transferenciasRouter } from './modules/entradas';
+import { eventosRouter } from './modules/eventos';
+import { legalRouter } from './modules/legal';
+import { meRouter } from './modules/me';
+import { organizadorRouter } from './modules/organizador';
+import { pedidosRouter } from './modules/pedidos';
+import { publicoRouter } from './modules/publico';
+import { puertaRouter } from './modules/puerta';
+import { webhooksRouter } from './modules/webhooks';
+import './types';
 
-import authRoutes from './routes/auth';
-import eventoRoutes from './routes/eventos';
-import entradaRoutes from './routes/entradas';
-import qrRoutes from './routes/qr';
-import stripeRoutes from './routes/stripe';
-import stripeWebhookRoutes from './routes/stripeWebhook';
-import usuarioRoutes from './routes/usuarios';
-import favoritoRoutes from './routes/favoritos';
-import resenaRoutes from './routes/resenas';
-import notificacionRoutes from './routes/notificaciones';
-import artistaRoutes from './routes/artistas';
-import tramoRoutes from './routes/tramos';
-import reservaRoutes from './routes/reservas';
-import transferenciaRoutes from './routes/transferencias';
-import facturaRoutes from './routes/facturas';
-import analyticsRoutes from './routes/analytics';
-import terminoRoutes from './routes/terminos';
-import staffRoutes from './routes/staff';
-import legalRoutes from './routes/legal';
-import adminRoutes from './routes/admin/adminRoutes';
+export function crearApp() {
+  const app = express();
+  app.set('trust proxy', 1);
+  app.disable('x-powered-by');
 
-const app = express();
+  app.use(helmet());
+  app.use(
+    cors({
+      // La app móvil no envía Origin; en web solo se aceptan los orígenes configurados.
+      origin: (origen, cb) => cb(null, !origen || !esProduccion || env.CORS_ORIGINS.includes(origen)),
+    }),
+  );
+  app.use(pinoHttp({ logger, autoLogging: { ignore: (req) => req.url === '/health' } }));
 
-app.use(cors());
-app.use(express.json());
+  app.get('/health', (_req, res) => {
+    res.json({ estado: 'ok', servicio: 'kroos-master-api', version: '2.0.0' });
+  });
 
-const ADMIN_DIR = path.join(__dirname, '../../admin');
-app.use('/admin', express.static(ADMIN_DIR));
+  // Debe ir antes de express.json(): Stripe necesita el cuerpo sin parsear.
+  app.use('/api/webhooks', webhooksRouter);
 
-app.get('/admin', (_req, res) => {
-  res.redirect('/admin/login.html');
-});
+  app.use(express.json({ limit: '200kb' }));
 
-app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', service: 'kroos-master-backend' });
-});
+  app.use('/api', publicoRouter);
+  app.use('/api/auth', authRouter);
+  app.use('/api/me', meRouter);
+  app.use('/api/eventos', eventosRouter);
+  app.use('/api/pedidos', pedidosRouter);
+  app.use('/api/entradas', entradasRouter);
+  app.use('/api/transferencias', transferenciasRouter);
+  app.use('/api/puerta', puertaRouter);
+  app.use('/api/organizador', organizadorRouter);
+  app.use('/api/admin', adminRouter);
+  app.use('/api/legal', legalRouter);
 
-app.use('/api/auth', authRoutes);
-app.use('/api/eventos', eventoRoutes);
-app.use('/api/entradas', entradaRoutes);
-app.use('/api/qr', qrRoutes);
-app.use('/api/stripe', stripeRoutes);
-app.use('/api/stripe/webhook', stripeWebhookRoutes);
-app.use('/api/usuarios', usuarioRoutes);
-app.use('/api/favoritos', favoritoRoutes);
-app.use('/api/resenas', resenaRoutes);
-app.use('/api/notificaciones', notificacionRoutes);
-app.use('/api/artistas', artistaRoutes);
-app.use('/api/tramos', tramoRoutes);
-app.use('/api/reservas', reservaRoutes);
-app.use('/api/transferencias', transferenciaRoutes);
-app.use('/api/facturas', facturaRoutes);
-app.use('/api/analytics', analyticsRoutes);
-app.use('/api/terminos', terminoRoutes);
-app.use('/api/staff', staffRoutes);
-app.use('/api/legal', legalRoutes);
-app.use('/api/admin', adminRoutes);
-
-app.use((_req, res) => {
-  res.status(404).json({ mensaje: 'Ruta no encontrada' });
-});
-
-const PORT = process.env.PORT || 3000;
-
-const server = app.listen(PORT, () => {
-  console.log(`Servidor corriendo en puerto ${PORT}`);
-});
-
-export { app, server };
+  app.use(noEncontradoHandler);
+  app.use(errorHandler);
+  return app;
+}

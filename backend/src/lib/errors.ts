@@ -1,0 +1,33 @@
+/** Error de dominio con código estable que la app puede traducir. */
+export class AppError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly codigo: string,
+    mensaje: string,
+    public readonly detalles?: unknown,
+  ) {
+    super(mensaje);
+  }
+}
+
+export const noEncontrado = (que = 'Recurso') => new AppError(404, 'NO_ENCONTRADO', `${que} no encontrado`);
+export const prohibido = (mensaje = 'No tienes permiso para esta acción') => new AppError(403, 'PROHIBIDO', mensaje);
+export const conflicto = (codigo: string, mensaje: string) => new AppError(409, codigo, mensaje);
+export const peticionInvalida = (codigo: string, mensaje: string) => new AppError(400, codigo, mensaje);
+
+/** Errores lanzados con `raise exception` desde las funciones SQL. */
+const ERRORES_SQL: Record<string, AppError> = {
+  EVENTO_NO_DISPONIBLE: conflicto('EVENTO_NO_DISPONIBLE', 'El evento ya no está a la venta'),
+  TRAMO_INVALIDO: peticionInvalida('TRAMO_INVALIDO', 'Algún tipo de entrada no es válido'),
+  LIMITE_POR_PEDIDO: peticionInvalida('LIMITE_POR_PEDIDO', 'Superas el máximo de entradas por pedido'),
+  SIN_STOCK: conflicto('SIN_STOCK', 'No quedan entradas suficientes'),
+  TRANSFERENCIA_NO_DISPONIBLE: conflicto('TRANSFERENCIA_NO_DISPONIBLE', 'La transferencia ya no está disponible'),
+  ENTRADA_NO_TRANSFERIBLE: conflicto('ENTRADA_NO_TRANSFERIBLE', 'Esta entrada ya no se puede transferir'),
+  PEDIDO_NO_REEMBOLSABLE: conflicto('PEDIDO_NO_REEMBOLSABLE', 'Este pedido no se puede reembolsar'),
+};
+
+export function errorDesdeSql(error: { message?: string } | null | undefined): Error {
+  const mensaje = error?.message ?? '';
+  const conocido = Object.keys(ERRORES_SQL).find((k) => mensaje.includes(k));
+  return conocido ? ERRORES_SQL[conocido]! : new Error(mensaje || 'Error de base de datos');
+}
