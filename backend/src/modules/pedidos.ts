@@ -78,7 +78,7 @@ pedidosRouter.post('/', limiteCompras, async (req, res) => {
 async function datosConnect(eventoId: string, pedido: Pedido) {
   const { data } = await db
     .from('eventos')
-    .select('organizador:usuarios(stripe_account_id, stripe_onboarding_completo)')
+    .select('organizador:usuarios!eventos_organizador_id_fkey(stripe_account_id, stripe_onboarding_completo)')
     .eq('id', eventoId)
     .single();
   const org = data?.organizador as unknown as { stripe_account_id: string | null; stripe_onboarding_completo: boolean } | null;

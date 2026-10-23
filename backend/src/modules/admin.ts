@@ -73,7 +73,7 @@ adminRouter.get('/eventos', async (req, res) => {
     .from('eventos')
     .select(
       'id, titulo, categoria, ciudad, recinto, inicia_en, estado, destacado, creado_en, ' +
-        'organizador:usuarios(id, nombre, nombre_artistico, email), tramos(cantidad_total, cantidad_vendida)',
+        'organizador:usuarios!eventos_organizador_id_fkey(id, nombre, nombre_artistico, email), tramos(cantidad_total, cantidad_vendida)',
       { count: 'exact' },
     )
     .order('inicia_en', { ascending: false });
